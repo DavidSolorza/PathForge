@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { LogIn, Mail, Lock } from 'lucide-react'
-import { loginSchema, type LoginInput } from '../schemas'
 import { AuthService } from '../services'
 import { useAuthStore } from '@core/store'
 import { Input } from '@shared/components/ui/Input'
@@ -13,24 +10,27 @@ import { Button } from '@shared/components/ui/Button'
 export function LoginPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-  })
-
-  const onSubmit = async (data: LoginInput) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) {
+      setError('Completa todos los campos')
+      return
+    }
     try {
+      setLoading(true)
       setError(null)
-      const response = await AuthService.login(data.email, data.password)
+      const response = await AuthService.login(email.trim(), password)
       setAuth(response.user, response.token)
       navigate('/dashboard')
     } catch {
-      setError('Credenciales inválidas. Intenta de nuevo.')
+      setError('Credenciales invalidas. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -41,40 +41,40 @@ export function LoginPage() {
       transition={{ duration: 0.5, delay: 0.1 }}
     >
       <h1 className="text-2xl font-semibold text-neutral-900 text-center mb-1">
-        Iniciar sesión
+        Iniciar sesion
       </h1>
       <p className="text-sm text-neutral-500 text-center mb-8">
         Accede a tu ruta de aprendizaje
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600 animate-fade-in">
+          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
 
         <Input
-          label="Correo electrónico"
+          label="Correo electronico"
           type="email"
           placeholder="tu@correo.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           icon={<Mail className="h-4 w-4" />}
-          error={errors.email?.message}
-          {...register('email')}
         />
 
         <Input
-          label="Contraseña"
+          label="Contrasena"
           type="password"
-          placeholder="••••••••"
+          placeholder="********"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}
-          error={errors.password?.message}
-          {...register('password')}
         />
 
-        <Button type="submit" loading={isSubmitting} fullWidth>
+        <Button type="submit" loading={loading} fullWidth>
           <LogIn className="h-4 w-4" />
-          Iniciar sesión
+          Iniciar sesion
         </Button>
       </form>
 
@@ -84,7 +84,7 @@ export function LoginPage() {
           to="/register"
           className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
         >
-          Regístrate
+          Registrate
         </Link>
       </p>
     </motion.div>

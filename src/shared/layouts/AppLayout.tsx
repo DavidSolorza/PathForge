@@ -11,10 +11,14 @@ import {
   Menu,
   X,
   ChevronLeft,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { cn } from '@shared/lib/utils'
 import { config } from '@core/config'
-import { useAuthStore } from '@core/store'
+import { useAuthStore, useUIStore } from '@core/store'
+import { useToastStore } from '@shared/store/toastStore'
+import { ToastContainer } from '@shared/components/ui/Toast'
 import { Avatar } from '@shared/components/ui/Avatar'
 
 const navItems = [
@@ -27,13 +31,16 @@ const navItems = [
 ]
 
 export function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { sidebarOpen, toggleSidebar, theme, setTheme } = useUIStore()
   const [mobileOpen, setMobileOpen] = useState(false)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const { toasts, dismissToast } = useToastStore()
 
   return (
-    <div className="flex h-svh bg-neutral-50">
+    <div className="flex h-svh bg-neutral-50 text-neutral-900">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
       <AnimatePresence mode="wait">
         {mobileOpen && (
           <motion.div
@@ -53,37 +60,19 @@ export function AppLayout() {
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div
-          className={cn(
-            'flex h-16 items-center border-b border-neutral-100 px-4',
-            sidebarOpen ? 'justify-between' : 'justify-center',
-          )}
-        >
+        <div className={cn('flex h-16 items-center border-b border-neutral-100 px-4', sidebarOpen ? 'justify-between' : 'justify-center')}>
           {sidebarOpen && (
             <a href="/" className="flex items-center gap-2 no-underline">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-600">
                 <span className="text-xs font-bold text-white">P</span>
               </div>
-              <span className="text-sm font-semibold text-neutral-900">
-                {config.app.name}
-              </span>
+              <span className="text-sm font-semibold text-neutral-900">{config.app.name}</span>
             </a>
           )}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:block transition-colors"
-          >
-            <ChevronLeft
-              className={cn(
-                'h-4 w-4 transition-transform duration-200',
-                !sidebarOpen && 'rotate-180',
-              )}
-            />
+          <button onClick={toggleSidebar} className="hidden rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:block transition-colors">
+            <ChevronLeft className={cn('h-4 w-4 transition-transform duration-200', !sidebarOpen && 'rotate-180')} />
           </button>
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:hidden transition-colors"
-          >
+          <button onClick={() => setMobileOpen(false)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:hidden transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -97,9 +86,7 @@ export function AppLayout() {
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 no-underline',
-                  isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
+                  isActive ? 'bg-primary-50 text-primary-700' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
                   !sidebarOpen && 'justify-center px-2',
                 )
               }
@@ -110,17 +97,25 @@ export function AppLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-neutral-100 p-3">
+        <div className="border-t border-neutral-100 p-3 space-y-2">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all no-underline',
+              !sidebarOpen && 'justify-center px-2',
+              'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
+            )}
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {sidebarOpen && <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>}
+          </button>
+
           {sidebarOpen ? (
             <div className="flex items-center gap-3 rounded-lg px-3 py-2">
               <Avatar size="sm" src={user?.avatar} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-neutral-900 truncate">
-                  {user?.name || 'Usuario'}
-                </p>
-                <p className="text-xs text-neutral-400 truncate">
-                  {user?.email || ''}
-                </p>
+                <p className="text-sm font-medium text-neutral-900 truncate">{user?.name || 'Usuario'}</p>
+                <p className="text-xs text-neutral-400 truncate">{user?.email || ''}</p>
               </div>
             </div>
           ) : (
@@ -133,18 +128,12 @@ export function AppLayout() {
 
       <div className="flex flex-1 flex-col min-w-0">
         <header className="flex h-16 items-center gap-4 border-b border-neutral-200 bg-white px-4 lg:px-6">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:hidden transition-colors"
-          >
+          <button onClick={() => setMobileOpen(true)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 lg:hidden transition-colors">
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
-          <button
-            onClick={logout}
-            className="rounded-lg px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
-          >
-            Cerrar sesión
+          <button onClick={logout} className="rounded-lg px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors">
+            Cerrar sesion
           </button>
         </header>
         <main className="flex-1 overflow-auto">

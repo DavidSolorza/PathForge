@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { UserPlus, Mail, Lock, User } from 'lucide-react'
-import { registerSchema, type RegisterInput } from '../schemas'
 import { AuthService } from '../services'
 import { useAuthStore } from '@core/store'
 import { Input } from '@shared/components/ui/Input'
@@ -13,24 +10,37 @@ import { Button } from '@shared/components/ui/Button'
 export function RegisterPage() {
   const navigate = useNavigate()
   const setAuth = useAuthStore((s) => s.setAuth)
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
-  })
-
-  const onSubmit = async (data: RegisterInput) => {
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setError('Completa todos los campos')
+      return
+    }
+    if (password.length < 6) {
+      setError('La contrasena debe tener al menos 6 caracteres')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('Las contrasenas no coinciden')
+      return
+    }
     try {
+      setLoading(true)
       setError(null)
-      const response = await AuthService.register(data.name, data.email, data.password)
+      const response = await AuthService.register(name.trim(), email.trim(), password)
       setAuth(response.user, response.token)
       navigate('/dashboard')
-    } catch {
-      setError('Error al registrar. Intenta de nuevo.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -47,9 +57,9 @@ export function RegisterPage() {
         Comienza a construir tu ruta de aprendizaje
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600 animate-fade-in">
+          <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
@@ -57,39 +67,39 @@ export function RegisterPage() {
         <Input
           label="Nombre completo"
           placeholder="Tu nombre"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           icon={<User className="h-4 w-4" />}
-          error={errors.name?.message}
-          {...register('name')}
         />
 
         <Input
-          label="Correo electrónico"
+          label="Correo electronico"
           type="email"
           placeholder="tu@correo.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           icon={<Mail className="h-4 w-4" />}
-          error={errors.email?.message}
-          {...register('email')}
         />
 
         <Input
-          label="Contraseña"
+          label="Contrasena"
           type="password"
-          placeholder="••••••••"
+          placeholder="********"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}
-          error={errors.password?.message}
-          {...register('password')}
         />
 
         <Input
-          label="Confirmar contraseña"
+          label="Confirmar contrasena"
           type="password"
-          placeholder="••••••••"
+          placeholder="********"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           icon={<Lock className="h-4 w-4" />}
-          error={errors.confirmPassword?.message}
-          {...register('confirmPassword')}
         />
 
-        <Button type="submit" loading={isSubmitting} fullWidth>
+        <Button type="submit" loading={loading} fullWidth>
           <UserPlus className="h-4 w-4" />
           Crear cuenta
         </Button>
@@ -101,7 +111,7 @@ export function RegisterPage() {
           to="/login"
           className="font-medium text-primary-600 hover:text-primary-700 transition-colors"
         >
-          Inicia sesión
+          Inicia sesion
         </Link>
       </p>
     </motion.div>

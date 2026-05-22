@@ -1,131 +1,130 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Zap, Code2, Database, Cloud, Shield, Brain } from 'lucide-react'
-import { useUserStore } from '@core/store'
-import { UserService } from '../services'
-import type { Skill } from '@shared/types'
+import { Route, Zap, Target } from 'lucide-react'
+import { usePathStore, useStatsStore } from '@core/store'
+import { PathStorageService } from '@features/learning-path/services/PathStorageService'
+import { UserStorageService } from '@features/profile/services/UserStorageService'
+import { CATEGORIES } from '@shared/types'
 import { Card, CardHeader, CardContent } from '@shared/components/ui/Card'
-import { Badge } from '@shared/components/ui/Badge'
 import { Progress } from '@shared/components/ui/Progress'
-import { LoadingState } from '@shared/components/ui/LoadingState'
-import { ErrorState } from '@shared/components/ui/ErrorState'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { Button } from '@shared/components/ui/Button'
-
-const skillIcons: Record<string, typeof Code2> = {
-  python: Code2,
-  node: Code2,
-  javascript: Code2,
-  typescript: Code2,
-  mongodb: Database,
-  postgresql: Database,
-  sql: Database,
-  docker: Cloud,
-  aws: Cloud,
-  kubernetes: Cloud,
-  security: Shield,
-  machine_learning: Brain,
-  deep_learning: Brain,
-  tensorflow: Brain,
-  pytorch: Brain,
-}
-
-function SkillCard({ skill, index }: { skill: Skill; index: number }) {
-  const Icon = skillIcons[skill.name.toLowerCase()] || Code2
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
-    >
-      <Card hover>
-        <CardHeader>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-neutral-900 capitalize">
-              {skill.name}
-            </h3>
-            <p className="text-xs text-neutral-400 capitalize">
-              {skill.category}
-            </p>
-          </div>
-          <Badge
-            variant={
-              skill.level === 'expert'
-                ? 'success'
-                : skill.level === 'advanced'
-                  ? 'primary'
-                  : skill.level === 'intermediate'
-                    ? 'warning'
-                    : 'default'
-            }
-          >
-            {skill.level}
-          </Badge>
-        </CardHeader>
-        <CardContent>
-          <Progress value={skill.progress} size="sm" showLabel />
-          <p className="text-xs text-neutral-400 mt-1">
-            {skill.experience} horas de experiencia
-          </p>
-        </CardContent>
-      </Card>
-    </motion.div>
-  )
-}
+import { NewPathModal } from '@features/learning-path/components/NewPathModal'
+import { useState } from 'react'
 
 export function SkillsPage() {
-  const { skills, loading, setSkills, setLoading } = useUserStore()
-  const [error, setError] = useState<string | null>(null)
+  const { paths, setPaths } = usePathStore()
+  const { stats, setStats } = useStatsStore()
+  const [showNewPath, setShowNewPath] = useState(false)
 
   useEffect(() => {
-    const fetchSkills = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await UserService.getSkills()
-        setSkills(data)
-      } catch {
-        setError('Error al cargar habilidades')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchSkills()
+    setPaths(PathStorageService.getAll())
+    setStats(UserStorageService.getStats())
   }, [])
 
-  if (loading) return <LoadingState message="Cargando habilidades..." />
-  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />
+  const categoryCount: Record<string, number> = {}
+  paths.forEach((p) => {
+    categoryCount[p.category] = (categoryCount[p.category] || 0) + 1
+  })
 
-  if (skills.length === 0) {
+  const sortedCategories = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])
+
+  if (paths.length === 0) {
     return (
-      <EmptyState
-        icon={<Zap className="h-8 w-8" />}
-        title="Sin habilidades registradas"
-        description="Agrega tus habilidades para recibir recomendaciones personalizadas"
-        action={<Button>Agregar habilidad</Button>}
-      />
+      <>
+        <NewPathModal open={showNewPath} onClose={() => setShowNewPath(false)} />
+        <EmptyState
+          icon={<Zap className="h-10 w-10" />}
+          title="Sin actividad todavía"
+          description="Crea rutas de aprendizaje para ver tus estadísticas aquí"
+          action={<Button onClick={() => setShowNewPath(true)}>Crear primera ruta</Button>}
+        />
+      </>
     )
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-neutral-900">Habilidades</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          {skills.length} habilidades registradas
-        </p>
+        <h1 className="text-2xl font-semibold text-neutral-900">Estadísticas</h1>
+        <p className="text-sm text-neutral-500 mt-1">{paths.length} rutas creadas</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {skills
-          .sort((a, b) => b.progress - a.progress)
-          .map((skill, index) => (
-            <SkillCard key={skill.id} skill={skill} index={index} />
-          ))}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <Route className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-semibold text-neutral-900">Rutas</span>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-neutral-900">{paths.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Target className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-semibold text-neutral-900">Progreso promedio</span>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-neutral-900">{stats.totalProgress}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <Zap className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-semibold text-neutral-900">Temas completados</span>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-neutral-900">{stats.completedTopics}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {sortedCategories.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900 mb-4">Categorías</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sortedCategories.map(([cat, count]) => {
+              const info = CATEGORIES.find((c) => c.value === cat)
+              return (
+                <motion.div key={cat} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card>
+                    <CardHeader>
+                      <span className="text-xl">{info?.emoji || '📚'}</span>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-neutral-900">{info?.label || cat}</h3>
+                        <p className="text-xs text-neutral-400">{count} ruta{count > 1 ? 's' : ''}</p>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Todas las rutas</h2>
+        <div className="space-y-3">
+          {paths.map((p) => {
+            const cat = CATEGORIES.find((c) => c.value === p.category)
+            const total = p.stages.flatMap((s) => s.topics).length
+            const done = p.stages.flatMap((s) => s.topics).filter((t) => t.completed).length
+            return (
+              <Card key={p.id}>
+                <div className="flex items-center gap-4">
+                  <span className="text-xl">{cat?.emoji || '📚'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-900">{p.title}</p>
+                    <p className="text-xs text-neutral-400">{done}/{total} temas • {p.progress}%</p>
+                  </div>
+                  <Progress value={p.progress} size="sm" showLabel className="w-32" />
+                </div>
+              </Card>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

@@ -15,50 +15,50 @@ import { config } from '@core/config'
 const features = [
   {
     icon: Bot,
-    title: 'Recomendaciones IA',
+    title: 'IA que te conoce',
     description:
-      'Análisis inteligente de tu progreso para sugerir los siguientes pasos más relevantes.',
+      'La IA analiza tu progreso, proyectos y habilidades para decirte exactamente que sigue. No mas dudas sobre tu siguiente paso.',
   },
   {
     icon: Route,
-    title: 'Rutas dinámicas',
+    title: 'Rutas inteligentes',
     description:
-      'Roadmaps personalizados que se adaptan a tu ritmo y objetivos de aprendizaje.',
+      'Rutas de aprendizaje personalizadas que se adaptan a tu ritmo. Cada etapa construye sobre la anterior, desde cero hasta dominio.',
   },
   {
     icon: BarChart3,
-    title: 'Progreso inteligente',
+    title: 'Analiza tu progreso',
     description:
-      'Visualiza tu evolución con métricas claras y seguimiento detallado de habilidades.',
+      '¿Estas listo para un proyecto? ¿Que te falta para tu objetivo? PathForge evalua tu estado actual y te guia.',
   },
   {
     icon: Layers,
-    title: 'Proyectos prácticos',
+    title: 'Multi-stack',
     description:
-      'Aplica lo aprendido con proyectos guiados que refuerzan tu conocimiento.',
+      'Frontend, Backend, DevOps, IA, Ciberseguridad, Mobile... cualquier tecnologia que quieras dominar.',
   },
 ]
 
 const steps = [
   {
     number: '01',
-    title: 'Define tu objetivo',
-    description: 'Elige qué quieres aprender: Python, IA, Ciberseguridad y más.',
+    title: 'Define tu meta',
+    description: 'Python, React, IA, Ciberseguridad, DevOps... Tu eliges que tecnologia aprender.',
   },
   {
     number: '02',
-    title: 'Sigue tu ruta',
-    description: 'Recibe un roadmap personalizado con etapas claras y recursos.',
+    title: 'Analisis IA',
+    description: 'La IA identifica tus conocimientos previos y prerrequisitos, luego construye una ruta desde cero.',
   },
   {
     number: '03',
-    title: 'Construye proyectos',
-    description: 'Aplica conocimientos con proyectos prácticos y reales.',
+    title: 'Sigue tu ruta',
+    description: 'Etapas claras para aprender a tu ritmo con recursos y autores tech recomendados.',
   },
   {
     number: '04',
     title: 'Evoluciona',
-    description: 'La IA analiza tu progreso y ajusta tu camino constantemente.',
+    description: 'La IA responde: "Que sigue?", "Estas listo para un proyecto?", "Que tecnologia te falta?".',
   },
 ]
 
@@ -107,7 +107,7 @@ export function LandingPage() {
                 className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-4 py-1.5 text-sm font-medium text-primary-700"
               >
                 <Sparkles className="h-4 w-4" />
-                Tu guía de aprendizaje con IA
+                Tu guia de programacion con IA
               </motion.div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-neutral-900 leading-[1.1]">
@@ -115,8 +115,7 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-6 text-lg leading-relaxed text-neutral-500 max-w-2xl mx-auto">
-                PathForge AI analiza tu progreso, habilidades y proyectos para
-                construir rutas de aprendizaje inteligentes y personalizadas.
+                {config.app.name} genera rutas inteligentes de aprendizaje, analiza tu progreso y responde: ¿Que sigue? ¿Estas listo para un proyecto? ¿Que te falta para tu meta?
               </p>
 
               <motion.div

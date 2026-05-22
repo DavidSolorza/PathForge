@@ -1,15 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type {
-  User,
-  Skill,
-  LearningPath,
-  Stage,
-  Project,
-  Recommendation,
-  ChatMessage,
-  UserStats,
-} from '@shared/types'
+import type { User, LearningPath, Project, ChatMessage, UserStats } from '@shared/types'
 
 interface AuthState {
   user: User | null
@@ -17,7 +8,7 @@ interface AuthState {
   isAuthenticated: boolean
   setAuth: (user: User, token: string) => void
   logout: () => void
-  updateUser: (user: Partial<User>) => void
+  updateUser: (updates: Partial<User>) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,41 +24,9 @@ export const useAuthStore = create<AuthState>()(
           user: state.user ? { ...state.user, ...updates } : null,
         })),
     }),
-    {
-      name: 'pathforge-auth',
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    },
+    { name: 'pathforge_auth' },
   ),
 )
-
-interface UserState {
-  skills: Skill[]
-  stats: UserStats | null
-  loading: boolean
-  setSkills: (skills: Skill[]) => void
-  setStats: (stats: UserStats) => void
-  setLoading: (loading: boolean) => void
-  updateSkill: (skillId: string, updates: Partial<Skill>) => void
-}
-
-export const useUserStore = create<UserState>()((set) => ({
-  skills: [],
-  stats: null,
-  loading: false,
-  setSkills: (skills) => set({ skills }),
-  setStats: (stats) => set({ stats }),
-  setLoading: (loading) => set({ loading }),
-  updateSkill: (skillId, updates) =>
-    set((state) => ({
-      skills: state.skills.map((s) =>
-        s.id === skillId ? { ...s, ...updates } : s,
-      ),
-    })),
-}))
 
 interface PathState {
   paths: LearningPath[]
@@ -75,8 +34,9 @@ interface PathState {
   loading: boolean
   setPaths: (paths: LearningPath[]) => void
   setActivePath: (path: LearningPath | null) => void
+  toggleTopic: (pathId: string, stageId: string, topicId: string) => void
+  addPath: (path: LearningPath) => void
   setLoading: (loading: boolean) => void
-  updateStage: (pathId: string, stageId: string, updates: Partial<Stage>) => void
 }
 
 export const usePathStore = create<PathState>()((set) => ({
@@ -85,29 +45,57 @@ export const usePathStore = create<PathState>()((set) => ({
   loading: false,
   setPaths: (paths) => set({ paths }),
   setActivePath: (path) => set({ activePath: path }),
-  setLoading: (loading) => set({ loading }),
-  updateStage: (pathId, stageId, updates) =>
+  toggleTopic: (pathId, stageId, topicId) =>
     set((state) => ({
       paths: state.paths.map((p) =>
         p.id === pathId
           ? {
               ...p,
               stages: p.stages.map((s) =>
-                s.id === stageId ? { ...s, ...updates } : s,
+                s.id === stageId
+                  ? {
+                      ...s,
+                      topics: s.topics.map((t) =>
+                        t.id === topicId ? { ...t, completed: !t.completed } : t,
+                      ),
+                      status: s.topics.every((t) => t.id === topicId ? !t.completed : t.completed)
+                        ? 'completed'
+                        : s.topics.some((t) => t.id === topicId ? !t.completed : t.completed)
+                          ? 'in_progress'
+                          : 'pending',
+                    }
+                  : s,
+              ),
+              progress: Math.round(
+                (p.stages.flatMap((s) =>
+                  s.id === stageId
+                    ? s.topics.map((t) => (t.id === topicId ? !t.completed : t.completed))
+                    : s.topics.map((t) => t.completed),
+                ).filter(Boolean).length /
+                  p.stages.flatMap((s) => s.topics).length) *
+                  100,
               ),
             }
           : p,
       ),
-      activePath:
-        state.activePath?.id === pathId && state.activePath
-          ? {
-              ...state.activePath,
-              stages: state.activePath.stages.map((s) =>
-                s.id === stageId ? { ...s, ...updates } : s,
-              ),
-            }
-          : state.activePath,
+      activePath: state.activePath?.id === pathId
+        ? {
+            ...state.activePath,
+            stages: state.activePath.stages.map((s) =>
+              s.id === stageId
+                ? {
+                    ...s,
+                    topics: s.topics.map((t) =>
+                      t.id === topicId ? { ...t, completed: !t.completed } : t,
+                    ),
+                  }
+                : s,
+            ),
+          }
+        : state.activePath,
     })),
+  addPath: (path) => set((state) => ({ paths: [path, ...state.paths] })),
+  setLoading: (loading) => set({ loading }),
 }))
 
 interface ProjectState {
@@ -116,7 +104,8 @@ interface ProjectState {
   setProjects: (projects: Project[]) => void
   setLoading: (loading: boolean) => void
   addProject: (project: Project) => void
-  updateProject: (projectId: string, updates: Partial<Project>) => void
+  updateProject: (id: string, updates: Partial<Project>) => void
+  removeProject: (id: string) => void
 }
 
 export const useProjectStore = create<ProjectState>()((set) => ({
@@ -125,35 +114,71 @@ export const useProjectStore = create<ProjectState>()((set) => ({
   setProjects: (projects) => set({ projects }),
   setLoading: (loading) => set({ loading }),
   addProject: (project) =>
-    set((state) => ({ projects: [...state.projects, project] })),
-  updateProject: (projectId, updates) =>
+    set((state) => ({ projects: [project, ...state.projects] })),
+  updateProject: (id, updates) =>
     set((state) => ({
       projects: state.projects.map((p) =>
-        p.id === projectId ? { ...p, ...updates } : p,
+        p.id === id ? { ...p, ...updates } : p,
       ),
+    })),
+  removeProject: (id) =>
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== id),
     })),
 }))
 
-interface RecommendationState {
-  recommendations: Recommendation[]
-  chatMessages: ChatMessage[]
-  loading: boolean
-  setRecommendations: (recommendations: Recommendation[]) => void
-  setChatMessages: (messages: ChatMessage[]) => void
-  addChatMessage: (message: ChatMessage) => void
-  setLoading: (loading: boolean) => void
+interface ChatState {
+  messages: ChatMessage[]
+  addMessage: (msg: ChatMessage) => void
+  setMessages: (msgs: ChatMessage[]) => void
+  clearMessages: () => void
 }
 
-export const useRecommendationStore = create<RecommendationState>()((set) => ({
-  recommendations: [],
-  chatMessages: [],
-  loading: false,
-  setRecommendations: (recommendations) => set({ recommendations }),
-  setChatMessages: (messages) => set({ chatMessages: messages }),
-  addChatMessage: (message) =>
-    set((state) => ({ chatMessages: [...state.chatMessages, message] })),
-  setLoading: (loading) => set({ loading }),
-}))
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set) => ({
+      messages: [],
+      addMessage: (msg) =>
+        set((state) => ({ messages: [...state.messages, msg].slice(-50) })),
+      setMessages: (msgs) => set({ messages: msgs }),
+      clearMessages: () => set({ messages: [] }),
+    }),
+    { name: 'pathforge_chat' },
+  ),
+)
+
+interface StatsState {
+  stats: UserStats
+  setStats: (stats: UserStats) => void
+  updateStats: (updates: Partial<UserStats>) => void
+}
+
+const DEFAULT_STATS: UserStats = {
+  totalPaths: 0,
+  completedTopics: 0,
+  totalProgress: 0,
+  streak: 0,
+  favoriteCategory: '',
+  activeDays: 0,
+}
+
+export const useStatsStore = create<StatsState>()(
+  persist(
+    (set) => ({
+      stats: { ...DEFAULT_STATS },
+      setStats: (stats) => set({ stats: { ...DEFAULT_STATS, ...stats } }),
+      updateStats: (updates) =>
+        set((state) => ({ stats: { ...state.stats, ...updates } })),
+    }),
+    {
+      name: 'pathforge_stats',
+      merge: (persisted, current) => ({
+        ...current,
+        stats: { ...DEFAULT_STATS, ...(persisted as any)?.stats },
+      }),
+    },
+  ),
+)
 
 interface UIState {
   sidebarOpen: boolean
@@ -167,10 +192,9 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarOpen: true,
       theme: 'system',
-      toggleSidebar: () =>
-        set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+      toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setTheme: (theme) => set({ theme }),
     }),
-    { name: 'pathforge-ui' },
+    { name: 'pathforge_ui' },
   ),
 )
