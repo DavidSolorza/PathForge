@@ -34,6 +34,22 @@ export function LoginPage() {
     }
   }
 
+  const handleQuickDemo = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const demoResponse = await AuthService.register('Estudiante Demo', 'demo@pathforge.ai', '123456').catch(() => {
+        return AuthService.login('demo@pathforge.ai', '123456')
+      })
+      setAuth(demoResponse.user, demoResponse.token)
+      navigate('/dashboard')
+    } catch {
+      setError('Error al iniciar el modo demo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -76,6 +92,21 @@ export function LoginPage() {
           <LogIn className="h-4 w-4" />
           Iniciar sesion
         </Button>
+
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-neutral-200"></div>
+          <span className="flex-shrink mx-4 text-neutral-400 text-xs uppercase">O</span>
+          <div className="flex-grow border-t border-neutral-200"></div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleQuickDemo}
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          🔑 Acceso Rápido (Demo)
+        </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-neutral-500">

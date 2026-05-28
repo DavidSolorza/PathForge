@@ -11,107 +11,197 @@ const SPECIFIC_TOPICS: Record<string, { stages: { name: string; topics: TopicDef
   python: { stages: [
     { name: 'Fundamentos de Python', topics: [
       { name: 'Variables y tipos de datos (int, float, str, bool)' },
-      { name: 'Listas, tuplas y diccionarios' },
+      { name: 'Listas, tuplas y diccionarios en Python' },
       { name: 'Estructuras de control: if, elif, else' },
-      { name: 'Bucles: for y while' },
-      { name: 'Funciones: def, parametros y return' },
+      { name: 'Bucles y repeticiones: for y while' },
+      { name: 'Funciones: def, parámetros y return' },
     ]},
-    { name: 'Funciones y modulos', topics: [
-      { name: 'Funciones lambda y list comprehension' },
-      { name: 'Modulos y paquetes con pip' },
+    { name: 'Funciones y módulos', topics: [
+      { name: 'Funciones lambda y list comprehensions' },
+      { name: 'Módulos y paquetes con pip' },
       { name: 'Manejo de archivos (txt, csv, json)' },
       { name: 'Manejo de excepciones (try, except)' },
-      { name: 'Programacion orientada a objetos basica' },
+      { name: 'Programación orientada a objetos básica' },
     ]},
     { name: 'POO y proyectos', topics: [
       { name: 'Clases, herencia y polimorfismo' },
-      { name: 'Metodos especiales y decoradores' },
-      { name: 'Entornos virtuales y dependencias' },
-      { name: 'Testing con pytest' },
-      { name: 'Proyecto: CRUD con archivos' },
+      { name: 'Métodos especiales y decoradores en Python' },
+      { name: 'Entornos virtuales y dependencias (venv/poetry)' },
+      { name: 'Testing unitario con pytest' },
+      { name: 'Proyecto: CRUD básico con almacenamiento local' },
     ]},
     { name: 'Python avanzado', topics: [
-      { name: 'APIs con FastAPI o Flask' },
-      { name: 'Web scraping con BeautifulSoup' },
-      { name: 'Bases de datos con SQLite' },
-      { name: 'Decoradores avanzados' },
-      { name: 'Proyecto final integrador' },
+      { name: 'Creación de APIs REST con FastAPI o Flask' },
+      { name: 'Web scraping con BeautifulSoup y Requests' },
+      { name: 'Bases de datos relacionales con SQLite' },
+      { name: 'Programación asíncrona en Python' },
+      { name: 'Proyecto final integrador de desarrollo' },
     ]},
   ]},
   javascript: { stages: [
     { name: 'Fundamentos de JS', topics: [
       { name: 'Variables (let, const) y tipos de datos' },
-      { name: 'Funciones y arrow functions' },
-      { name: 'Arrays y metodos (map, filter, reduce)' },
-      { name: 'Objetos y destructuring' },
-      { name: 'Template literals y spread operator' },
+      { name: 'Funciones y arrow functions modernas' },
+      { name: 'Arrays y métodos avanzados (map, filter, reduce)' },
+      { name: 'Objetos literales y destructuring' },
+      { name: 'Template literals y spread/rest operator' },
     ]},
     { name: 'DOM y eventos', topics: [
-      { name: 'Seleccion de elementos del DOM' },
-      { name: 'Eventos (click, submit, input)' },
-      { name: 'Manipulacion de estilos' },
-      { name: 'Formularios y validacion' },
-      { name: 'Proyecto: todo app' },
+      { name: 'Selección y manipulación de elementos del DOM' },
+      { name: 'Manejo de eventos (click, submit, input)' },
+      { name: 'Manipulación dinámica de estilos CSS' },
+      { name: 'Formularios y validación de datos' },
+      { name: 'Proyecto: Todo App interactiva' },
     ]},
-    { name: 'Asincronia y APIs', topics: [
-      { name: 'Callbacks y promesas' },
-      { name: 'Async/await' },
-      { name: 'Fetch API' },
-      { name: 'CRUD con REST API' },
-      { name: 'Proyecto: app del clima' },
+    { name: 'Asincronía y APIs', topics: [
+      { name: 'Callbacks y la evolución a Promesas' },
+      { name: 'Uso de Async/await para flujos limpios' },
+      { name: 'Consumo de servicios con Fetch API' },
+      { name: 'Operaciones CRUD completas con REST APIs' },
+      { name: 'Proyecto: Aplicación del Clima en tiempo real' },
     ]},
-    { name: 'JS moderno', topics: [
-      { name: 'ES6 modules (import/export)' },
-      { name: 'npm y package.json' },
-      { name: 'Bundlers con Vite' },
-      { name: 'Testing con Jest' },
-      { name: 'Proyecto: SPA completa' },
+    { name: 'JS moderno y herramientas', topics: [
+      { name: 'ES6 Modules (import/export)' },
+      { name: 'Gestión de paquetes con npm y package.json' },
+      { name: 'Configuración básica de bundlers con Vite' },
+      { name: 'Introducción al testing con Jest' },
+      { name: 'Proyecto final: SPA completa' },
     ]},
   ]},
   react: { stages: [
     { name: 'Fundamentos de React', topics: [
-      { name: 'JSX y componentes funcionales' },
-      { name: 'Props y composicion' },
-      { name: 'Estado con useState' },
-      { name: 'Renderizado condicional y listas' },
-      { name: 'Eventos y formularios' },
+      { name: 'JSX y la filosofía de componentes funcionales' },
+      { name: 'Props y composición de interfaces' },
+      { name: 'Control de estado local con useState' },
+      { name: 'Renderizado condicional y renderizado de listas' },
+      { name: 'Manejo de eventos y formularios controlados' },
     ]},
     { name: 'React intermedio', topics: [
-      { name: 'useEffect y ciclo de vida' },
-      { name: 'useRef y DOM' },
-      { name: 'Context API' },
-      { name: 'Custom hooks' },
-      { name: 'React Router' },
+      { name: 'Efectos secundarios con useEffect y ciclo de vida' },
+      { name: 'Referencias al DOM con useRef' },
+      { name: 'Estado global simple con Context API' },
+      { name: 'Creación de Custom Hooks reutilizables' },
+      { name: 'Rutas dinámicas con React Router DOM' },
     ]},
     { name: 'Estado global y APIs', topics: [
-      { name: 'Zustand para estado global' },
-      { name: 'React Query' },
-      { name: 'Formularios con Hook Form' },
-      { name: 'Autenticacion y rutas protegidas' },
-      { name: 'Proyecto: CRUD completo' },
+      { name: 'Zustand para estado global ligero' },
+      { name: 'Mutación y caché con React Query (TanStack)' },
+      { name: 'Formularios avanzados con React Hook Form' },
+      { name: 'Autenticación de usuarios y rutas protegidas' },
+      { name: 'Proyecto: Dashboard de administración completo' },
     ]},
-    { name: 'Avanzado', topics: [
-      { name: 'Performance (memo, useMemo, useCallback)' },
-      { name: 'Testing con RTL' },
-      { name: 'Lazy loading y Suspense' },
-      { name: 'Deploy en Vercel' },
-      { name: 'Proyecto full-stack' },
+    { name: 'Optimización y despliegue', topics: [
+      { name: 'Rendimiento: memo, useMemo y useCallback' },
+      { name: 'Testing de componentes con React Testing Library' },
+      { name: 'Carga perezosa con Lazy loading y Suspense' },
+      { name: 'Despliegue y hosting en Vercel o Netlify' },
+      { name: 'Proyecto final: App Full-Stack conectada' },
     ]},
   ]},
   diseño: { stages: [
-    { name: 'Fundamentos de diseno', topics: [
-      { name: 'Principios CRAP' },
-      { name: 'Teoria del color' },
-      { name: 'Tipografia' },
-      { name: 'UX research basico' },
-      { name: 'Wireframes' },
+    { name: 'Fundamentos de diseño', topics: [
+      { name: 'Principios CRAP (Contraste, Repetición, Alineación, Proximidad)' },
+      { name: 'Teoría del color aplicada a interfaces digitales' },
+      { name: 'Jerarquía tipográfica y legibilidad' },
+      { name: 'Principios de UX research básico' },
+      { name: 'Creación de Wireframes de baja fidelidad' },
     ]},
-    { name: 'Herramientas', topics: [
-      { name: 'Figma: interfaz basica' },
-      { name: 'Figma: componentes y auto layout' },
-      { name: 'Diseno de interfaces moviles' },
-      { name: 'Sistemas de diseno' },
-      { name: 'Proyecto: app en Figma' },
+    { name: 'Herramientas de Diseño UI', topics: [
+      { name: 'Figma: Interfaz básica y herramientas de dibujo' },
+      { name: 'Figma: Componentes reutilizables y Auto Layout' },
+      { name: 'Diseño responsivo para móviles y escritorio' },
+      { name: 'Sistemas de diseño básicos (colores, fuentes, espaciados)' },
+      { name: 'Proyecto práctico: Prototipo interactivo en Figma' },
+    ]},
+  ]},
+  ingles: { stages: [
+    { name: 'Bases Gramaticales e Iniciales', topics: [
+      { name: 'Verbo To Be, pronombres personales y saludos' },
+      { name: 'Presente simple y adverbios de frecuencia' },
+      { name: 'Vocabulario esencial cotidiano (familia, comida, hogar)' },
+      { name: 'Pronunciación básica de fonemas difíciles en inglés' },
+      { name: 'Lecturas muy cortas y diálogos guiados' },
+    ]},
+    { name: 'Conversación y Tiempos Pasados', topics: [
+      { name: 'Pasado simple: verbos regulares e irregulares' },
+      { name: 'Presente continuo y el futuro con "going to" / "will"' },
+      { name: 'Vocabulario para situaciones comunes (viajes, compras, trabajo)' },
+      { name: 'Práctica de listening con canciones o podcasts sencillos' },
+      { name: 'Proyecto práctico: Simular una conversación en restaurante/aeropuerto' },
+    ]},
+    { name: 'Inglés Intermedio y Fluidez', topics: [
+      { name: 'Presente perfecto y su diferencia con el pasado simple' },
+      { name: 'Verbos modales (can, could, should, must, have to)' },
+      { name: 'Vocabulario profesional e inglés de negocios básico' },
+      { name: 'Técnicas de shadowing para mejorar la entonación' },
+      { name: 'Escribir correos electrónicos informales y profesionales' },
+    ]},
+    { name: 'Dominio y Comunicación Libre', topics: [
+      { name: 'Condicionales básicos (Zero, First, Second Conditional)' },
+      { name: 'Phrasal verbs esenciales y su uso natural' },
+      { name: 'Estrategias para sostener debates y opinar en inglés' },
+      { name: 'Preparación de una presentación personal/laboral de 5 min' },
+      { name: 'Proyecto: Grabación de una mini-presentación en video' },
+    ]},
+  ]},
+  backend: { stages: [
+    { name: 'Fundamentos de Backend con Node.js', topics: [
+      { name: 'Arquitectura cliente-servidor y el protocolo HTTP' },
+      { name: 'Node.js: Entorno de ejecución y el event loop' },
+      { name: 'Gestión de módulos y npm' },
+      { name: 'Creación de un servidor HTTP básico sin librerías' },
+      { name: 'Lectura y escritura de archivos locales con modulo fs' },
+    ]},
+    { name: 'Desarrollo de APIs REST con Express', topics: [
+      { name: 'Introducción a Express.js y enrutamiento' },
+      { name: 'Uso y creación de Middlewares para request/response' },
+      { name: 'Validación de parámetros y datos con Zod' },
+      { name: 'Control de errores global y estructurado' },
+      { name: 'Proyecto: API CRUD básica de artículos/usuarios' },
+    ]},
+    { name: 'Bases de Datos e Integración', topics: [
+      { name: 'Bases de datos SQL vs NoSQL: conceptos clave' },
+      { name: 'Conexión a PostgreSQL/MySQL mediante ORMs (Prisma)' },
+      { name: 'Diseño de esquemas y relaciones de bases de datos' },
+      { name: 'Autenticación con JSON Web Tokens (JWT) y encriptación con bcrypt' },
+      { name: 'Proyecto: Sistema de autenticación seguro y base de datos' },
+    ]},
+    { name: 'Backend Avanzado y Despliegue', topics: [
+      { name: 'Carga de archivos mediante Multer y almacenamiento en la nube' },
+      { name: 'Buenas prácticas de seguridad (Helmet, CORS, Rate Limit)' },
+      { name: 'Pruebas de integración con Supertest' },
+      { name: 'Contenerización básica con Docker' },
+      { name: 'Despliegue a producción en servicios cloud (Render/Railway)' },
+    ]},
+  ]},
+  ciberseguridad: { stages: [
+    { name: 'Fundamentos de Redes y Seguridad', topics: [
+      { name: 'Conceptos clave de redes (IP, subredes, DNS, DHCP)' },
+      { name: 'Modelo TCP/IP y protocolos esenciales (HTTP, HTTPS, SSH, FTP)' },
+      { name: 'Triángulo de seguridad CIA (Confidencialidad, Integridad, Disponibilidad)' },
+      { name: 'Introducción al sistema operativo Linux para seguridad' },
+      { name: 'Análisis de tráfico básico con Wireshark' },
+    ]},
+    { name: 'Vulnerabilidades y OWASP Top 10', topics: [
+      { name: 'Inyecciones SQL (SQLi) y cómo prevenirlas' },
+      { name: 'Cross-Site Scripting (XSS) y Cross-Site Request Forgery (CSRF)' },
+      { name: 'Autenticación rota y exposición de datos sensibles' },
+      { name: 'Uso práctico de herramientas de escaneo como Nmap y Gobuster' },
+      { name: 'Proyecto práctico: Encontrar y mitigar una vulnerabilidad básica' },
+    ]},
+    { name: 'Criptografía y Defensas', topics: [
+      { name: 'Conceptos de criptografía simétrica y asimétrica' },
+      { name: 'Funciones Hash, firmas digitales y certificados SSL/TLS' },
+      { name: 'Configuración básica de firewalls y VPNs' },
+      { name: 'Seguridad en el desarrollo (DevSecOps inicial)' },
+      { name: 'Proyecto: Implementar hashes y cifrado en un backend' },
+    ]},
+    { name: 'Pentesting y Auditoría Práctica', topics: [
+      { name: 'Metodologías de pruebas de penetración (reconocimiento, explotación)' },
+      { name: 'Introducción a laboratorios de práctica (TryHackMe / HackTheBox)' },
+      { name: 'Ingeniería social básica y concientización en seguridad' },
+      { name: 'Redacción de reportes técnicos de vulnerabilidades' },
+      { name: 'Proyecto final: Simular una auditoría de seguridad a una web local' },
     ]},
   ]},
 }
@@ -120,31 +210,31 @@ const GENERIC_TOPICS: { stages: { name: string; topics: TopicDef[] }[] } = {
   stages: [
     { name: 'Cimientos: lo que necesitas saber', topics: [
       { name: 'Conceptos clave explicados desde cero' },
-      { name: 'Terminologia esencial que usaras siempre' },
+      { name: 'Terminología esencial que usarás siempre' },
       { name: 'Herramientas y materiales para empezar' },
-      { name: 'Ejemplo practico: tu primer contacto' },
-      { name: 'Errores comunes al iniciar y como evitarlos' },
+      { name: 'Ejemplo práctico: tu primer contacto' },
+      { name: 'Errores comunes al iniciar y cómo evitarlos' },
     ]},
-    { name: 'Manos a la obra: practica guiada', topics: [
-      { name: 'Ejercicios faciles para ganar confianza' },
-      { name: 'Tecnica principal paso a paso' },
+    { name: 'Manos a la obra: práctica guiada', topics: [
+      { name: 'Ejercicios fáciles para ganar confianza' },
+      { name: 'Técnica principal paso a paso' },
       { name: 'Ejercicios progresivos: sube el nivel' },
       { name: 'Aplica lo aprendido en un caso real' },
-      { name: 'Revisa errores y corrige tu tecnica' },
+      { name: 'Revisa errores y corrige tu técnica' },
     ]},
     { name: 'Explora por tu cuenta', topics: [
       { name: 'Reto personal: algo que te apasione' },
-      { name: 'Busca recursos avanzados (ya sabes como)' },
+      { name: 'Busca recursos avanzados (ya sabes cómo)' },
       { name: 'Comunidades donde aprender y preguntar' },
       { name: 'Crea tu propio proyecto' },
-      { name: 'Ensenale a alguien (la mejor forma de aprender)' },
+      { name: 'Enséñale a alguien (la mejor forma de aprender)' },
     ]},
-    { name: 'Dominio: vuelvete autonomo', topics: [
+    { name: 'Dominio: vuélvete autónomo', topics: [
       { name: 'Proyecto final: demuestra lo que sabes' },
-      { name: 'Evalua tu progreso y define metas' },
+      { name: 'Evalúa tu progreso y define metas' },
       { name: 'Contribuye a la comunidad del tema' },
       { name: 'Plan para seguir aprendiendo solo' },
-      { name: 'Ensenar a otros: consolida tu conocimiento' },
+      { name: 'Enseñar a otros: consolida tu conocimiento' },
     ]},
   ],
 }
@@ -154,11 +244,59 @@ function findSpecificTopics(goal: string): { stages: { name: string; topics: Top
   for (const [key, data] of Object.entries(SPECIFIC_TOPICS)) {
     if (g.includes(key) || key.includes(g)) return data
   }
-  return null
+  
+  // Dynamic fallback generator to make it personalized even if not in database
+  const cleanGoal = goal.replace(/aprender|aprende|quiero aprender|dominando/gi, '').trim()
+  const capitalizedGoal = cleanGoal ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1) : 'Nuevo Tema'
+  
+  return {
+    stages: [
+      {
+        name: `Cimientos de ${capitalizedGoal}`,
+        topics: [
+          { name: `Conceptos clave y terminología básica de ${capitalizedGoal}` },
+          { name: `Herramientas básicas y configuración inicial para ${capitalizedGoal}` },
+          { name: `Ejemplo práctico y primera toma de contacto con ${capitalizedGoal}` },
+          { name: `Errores comunes al empezar con ${capitalizedGoal} y cómo evitarlos` },
+          { name: `Recursos y comunidades recomendadas de ${capitalizedGoal}` },
+        ]
+      },
+      {
+        name: `Práctica Guiada y Fundamentos de ${capitalizedGoal}`,
+        topics: [
+          { name: `Ejercicios iniciales de ${capitalizedGoal} paso a paso` },
+          { name: `Aplicación de técnicas fundamentales de ${capitalizedGoal}` },
+          { name: `Retos de nivel básico para ganar confianza en ${capitalizedGoal}` },
+          { name: `Proyecto pequeño: aplicando lo aprendido en ${capitalizedGoal}` },
+          { name: `Análisis de buenas prácticas en ${capitalizedGoal}` },
+        ]
+      },
+      {
+        name: `Exploración y Retos de Nivel Medio en ${capitalizedGoal}`,
+        topics: [
+          { name: `Conceptos avanzados de ${capitalizedGoal} que debes conocer` },
+          { name: `Ejercicios prácticos con mayor nivel de complejidad` },
+          { name: `Proyecto intermedio: resolución de un caso real de ${capitalizedGoal}` },
+          { name: `Optimización del flujo de trabajo y eficiencia en ${capitalizedGoal}` },
+          { name: `Enseñar a otros: explicación simple de un tema complejo de ${capitalizedGoal}` },
+        ]
+      },
+      {
+        name: `Dominio y Proyecto Final de ${capitalizedGoal}`,
+        topics: [
+          { name: `Diseño y desarrollo de tu Proyecto Final Integrador de ${capitalizedGoal}` },
+          { name: `Evaluación de tu progreso y autocrítica en ${capitalizedGoal}` },
+          { name: `Planificación para el aprendizaje continuo de ${capitalizedGoal}` },
+          { name: `Cómo resolver problemas complejos en ${capitalizedGoal} de forma autónoma` },
+          { name: `Consolidación: mentoría y portafolio de ${capitalizedGoal}` },
+        ]
+      }
+    ]
+  }
 }
 
 async function generateAITopics(goal: string, context?: ChatMessage[]): Promise<{ stages: { name: string; topics: TopicDef[] }[] } | null> {
-  const apiKey = config.gemini.apiKey
+  const apiKey = localStorage.getItem('pathforge_gemini_api_key') || config.gemini.apiKey
   if (!apiKey) return null
   let contextText = ''
   if (context && context.length > 0) {
@@ -310,7 +448,7 @@ Termina con entusiasmo: "Quieres que genere una ruta de aprendizaje con el modo 
 Manten el contexto de la conversacion.`
 
 async function callGemini(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
-  const apiKey = config.gemini.apiKey
+  const apiKey = localStorage.getItem('pathforge_gemini_api_key') || config.gemini.apiKey
   if (!apiKey) throw new Error('Gemini API key not configured')
 
   const parts: { text: string }[] = []
@@ -339,6 +477,22 @@ async function callGemini(systemPrompt: string, messages: { role: string; conten
 }
 
 export const AiService = {
+  async verifyApiKey(key: string): Promise<boolean> {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Hola, responde con un ok' }] }],
+          generationConfig: { maxOutputTokens: 10 },
+        }),
+      })
+      return res.ok
+    } catch {
+      return false
+    }
+  },
+
   async generatePath(goal: string, context?: ChatMessage[]): Promise<LearningPath> {
     const { category, difficulty } = detectCategory(goal)
     const title = generateTitle(goal)

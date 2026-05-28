@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Calendar, Route, Zap, Clock, Target, Save, Edit3, X } from 'lucide-react'
+import { Mail, Calendar, Route, Zap, Clock, Target, Save, Edit3, X, Key, Bot, Eye, EyeOff, Check, Loader2 } from 'lucide-react'
 import { useAuthStore, usePathStore, useStatsStore } from '@core/store'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
+import { AiService } from '@features/recommendations/services/AiService'
 import { CATEGORIES } from '@shared/types'
 import { Card, CardHeader, CardContent } from '@shared/components/ui/Card'
 import { Avatar } from '@shared/components/ui/Avatar'
@@ -24,6 +25,47 @@ export function ProfilePage() {
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('pathforge_gemini_api_key') || '')
+  const [showKey, setShowKey] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [tested, setTested] = useState(false)
+  const [testSuccess, setTestSuccess] = useState(false)
+
+  const saveApiKey = () => {
+    const key = apiKey.trim()
+    if (!key) {
+      localStorage.removeItem('pathforge_gemini_api_key')
+      addToast('info', 'Clave API removida. Usando modo simulado.')
+    } else {
+      localStorage.setItem('pathforge_gemini_api_key', key)
+      addToast('success', 'Clave API de Gemini guardada correctamente')
+    }
+  }
+
+  const testApiKey = async () => {
+    const key = apiKey.trim()
+    if (!key) {
+      addToast('warning', 'Ingresa una clave para probar')
+      return
+    }
+    setTesting(true)
+    setTested(true)
+    try {
+      const isOk = await AiService.verifyApiKey(key)
+      setTestSuccess(isOk)
+      if (isOk) {
+        addToast('success', '¡Conexión exitosa con la IA de Gemini!')
+      } else {
+        addToast('error', 'Error al validar la clave API. Revisa e intenta de nuevo.')
+      }
+    } catch {
+      setTestSuccess(false)
+      addToast('error', 'Ocurrió un error inesperado al conectar')
+    } finally {
+      setTesting(false)
+    }
+  }
 
   useEffect(() => {
     try {
@@ -156,23 +198,107 @@ export function ProfilePage() {
         <p className="text-xs text-neutral-400 mt-2">{completedTopics} de {totalTopics} temas completados</p>
       </div>
 
-      {favoriteCat && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {favoriteCat ? (
+          <Card>
+            <CardHeader>
+              <Target className="h-5 w-5 text-primary-600" />
+              <h2 className="text-sm font-semibold text-neutral-900">Categoría favorita</h2>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{favoriteCat.emoji}</span>
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">{favoriteCat.label}</p>
+                  <p className="text-xs text-neutral-400">Área con más rutas creadas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <Target className="h-5 w-5 text-primary-600" />
+              <h2 className="text-sm font-semibold text-neutral-900">Categoría favorita</h2>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-neutral-500">Crea tu primera ruta de aprendizaje para ver tu categoría favorita aquí.</p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
-            <Target className="h-5 w-5 text-primary-600" />
-            <h2 className="text-sm font-semibold text-neutral-900">Categoria favorita</h2>
+            <Bot className="h-5 w-5 text-primary-600 animate-pulse" />
+            <h2 className="text-sm font-semibold text-neutral-900">Configuración de Inteligencia Artificial</h2>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{favoriteCat.emoji}</span>
-              <div>
-                <p className="text-sm font-medium text-neutral-900">{favoriteCat.label}</p>
-                <p className="text-xs text-neutral-400">Area con mas rutas creadas</p>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              Ingresa tu clave API de Gemini para habilitar el mentor por IA en tiempo real. Consigue una clave gratis en{' '}
+              <a
+                href="https://aistudio.google.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 hover:text-primary-700 underline font-medium"
+              >
+                Google AI Studio
+              </a>.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-neutral-700">Clave API de Gemini</label>
+              <div className="relative flex items-center">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Key className="h-4 w-4 text-neutral-400" />
+                </div>
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="block w-full rounded-lg border border-neutral-200 bg-white py-2 pl-9 pr-10 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(!showKey)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-400 hover:text-neutral-600"
+                >
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button size="sm" onClick={saveApiKey} icon={<Save className="h-3.5 w-3.5" />}>
+                Guardar clave
+              </Button>
+              <Button size="sm" variant="outline" onClick={testApiKey} loading={testing} icon={!testing && <Zap className="h-3.5 w-3.5" />}>
+                Probar conexión
+              </Button>
+            </div>
+
+            {tested && (
+              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all ${
+                testSuccess
+                  ? 'border-green-200 bg-green-50 text-green-700'
+                  : 'border-red-200 bg-red-50 text-red-700'
+              }`}>
+                {testSuccess ? (
+                  <>
+                    <Check className="h-4 w-4 flex-shrink-0 text-green-600" />
+                    <span>Conexión exitosa. ¡La IA está lista para guiarte!</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="h-4 w-4 flex-shrink-0 text-red-600" />
+                    <span>Error de conexión. Verifica la clave ingresada.</span>
+                  </>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {paths.length > 0 && (
         <div>

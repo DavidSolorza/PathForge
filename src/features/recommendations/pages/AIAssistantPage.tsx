@@ -145,17 +145,39 @@ export function AIAssistantPage() {
     return query
   }
 
+  const hasApiKey = !!localStorage.getItem('pathforge_gemini_api_key')
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">
-            {mode === 'generator' ? 'Generador de rutas' : 'Chat normal'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-neutral-900">
+              {mode === 'generator' ? 'Generador de rutas' : 'Chat normal'}
+            </h1>
+            <span className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+              hasApiKey 
+                ? "bg-green-50 text-green-700 border border-green-200" 
+                : "bg-amber-50 text-amber-700 border border-amber-200"
+            )}>
+              <span className={cn("h-1.5 w-1.5 rounded-full", hasApiKey ? "bg-green-500" : "bg-amber-500 animate-pulse")} />
+              {hasApiKey ? 'IA en vivo' : 'IA Simulada (offline)'}
+            </span>
+          </div>
           <p className="text-sm text-neutral-500 mt-1">
             {mode === 'generator'
               ? 'Describe que quieres aprender y genera una ruta personalizada'
               : 'Pregunta lo que quieras sobre tu aprendizaje'}
+            {!hasApiKey && (
+              <span className="block text-xs text-neutral-400 mt-0.5">
+                Modo simulación activo. Conecta tu clave en tu{' '}
+                <button onClick={() => navigate('/profile')} className="underline text-primary-600 hover:text-primary-700 cursor-pointer">
+                  Perfil
+                </button>{' '}
+                para usar IA real en vivo.
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
