@@ -140,7 +140,7 @@ export function NewPathModal({ open, onClose }: NewPathModalProps) {
                             : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
                         )}
                       >
-                        <span className="text-lg">{cat.emoji}</span>
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-xs font-semibold text-primary-600 shrink-0">{cat.label.charAt(0)}</span>
                         <span className="font-medium">{cat.label}</span>
                       </button>
                     ))}

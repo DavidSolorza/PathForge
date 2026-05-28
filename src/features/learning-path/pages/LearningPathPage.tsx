@@ -176,8 +176,8 @@ export function LearningPathPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-2xl">
-            {category?.emoji || '📚'}
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-lg font-semibold text-primary-600">
+            {category?.label.charAt(0) || '?'}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export function LearningPathPage() {
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="default" size="sm">{category?.label || displayPath.category}</Badge>
               <Badge variant={displayPath.difficulty === 'beginner' ? 'default' : displayPath.difficulty === 'intermediate' ? 'warning' : 'primary'} size="sm">
-                {displayPath.difficulty === 'beginner' ? 'Principiante' : 'Intermedio'}
+                {displayPath.difficulty === 'beginner' ? 'Principiante' : displayPath.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
               </Badge>
             </div>
           </div>

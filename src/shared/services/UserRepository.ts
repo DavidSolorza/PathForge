@@ -1,4 +1,4 @@
-import { LocalStorageService } from '../LocalStorageService'
+import { LocalStorageService } from './LocalStorageService'
 import type { User } from '@shared/types'
 
 const AUTH_KEY = 'auth_users'

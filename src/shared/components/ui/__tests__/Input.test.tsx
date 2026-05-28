@@ -26,7 +26,7 @@ describe('Input', () => {
   })
 
   it('renders icon', () => {
-    render(<Input label="Search" icon={<span data-testid="search-icon">🔍</span>} />)
+    render(<Input label="Search" icon={<span data-testid="search-icon">S</span>} />)
     expect(screen.getByTestId('search-icon')).toBeInTheDocument()
   })
 

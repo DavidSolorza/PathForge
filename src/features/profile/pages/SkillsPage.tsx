@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Route, Zap, Target } from 'lucide-react'
 import { usePathStore, useStatsStore } from '@core/store'
@@ -10,7 +10,6 @@ import { Progress } from '@shared/components/ui/Progress'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { Button } from '@shared/components/ui/Button'
 import { NewPathModal } from '@features/learning-path/components/NewPathModal'
-import { useState } from 'react'
 
 export function SkillsPage() {
   const { paths, setPaths } = usePathStore()
@@ -90,7 +89,7 @@ export function SkillsPage() {
                 <motion.div key={cat} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                   <Card>
                     <CardHeader>
-                      <span className="text-xl">{info?.emoji || '📚'}</span>
+                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-xs font-semibold text-primary-600">{info?.label.charAt(0) || '?'}</span>
                       <div className="flex-1">
                         <h3 className="text-sm font-semibold text-neutral-900">{info?.label || cat}</h3>
                         <p className="text-xs text-neutral-400">{count} ruta{count > 1 ? 's' : ''}</p>
@@ -114,7 +113,7 @@ export function SkillsPage() {
             return (
               <Card key={p.id}>
                 <div className="flex items-center gap-4">
-                  <span className="text-xl">{cat?.emoji || '📚'}</span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-50 text-xs font-semibold text-primary-600">{cat?.label.charAt(0) || '?'}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-neutral-900">{p.title}</p>
                     <p className="text-xs text-neutral-400">{done}/{total} temas • {p.progress}%</p>

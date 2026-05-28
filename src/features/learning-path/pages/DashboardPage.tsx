@@ -111,8 +111,8 @@ export function DashboardPage() {
                     <Link key={path.id} to="/learning-path" onClick={() => setActivePath(path)} className="no-underline">
                       <Card hover>
                         <CardHeader>
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-lg">
-                            {cat?.emoji || '📚'}
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-sm font-semibold text-primary-600">
+                            {cat?.label.charAt(0) || '?'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="text-sm font-semibold text-neutral-900 truncate">{path.title}</h3>
@@ -151,7 +151,7 @@ export function DashboardPage() {
                       {activity.slice(0, 5).map((act) => (
                         <div key={act.id} className="flex items-start gap-3 text-sm">
                           <span className="mt-0.5">
-                            {act.type === 'path_created' ? '🆕' : act.type === 'topic_completed' ? '✅' : '🎉'}
+                            {act.type === 'path_created' ? 'NUEVO' : act.type === 'topic_completed' ? 'HECHO' : 'FIN'}
                           </span>
                           <div>
                             <p className="text-neutral-700">{act.title}</p>
@@ -187,7 +187,7 @@ export function DashboardPage() {
 
           {completedPaths.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-              <h2 className="text-lg font-semibold text-neutral-900 mb-4">Rutas completadas 🎉</h2>
+              <h2 className="text-lg font-semibold text-neutral-900 mb-4">Rutas completadas</h2>
               <div className="flex flex-wrap gap-3">
                 {completedPaths.map((p) => (
                   <Badge key={p.id} variant="success" size="md">

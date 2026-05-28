@@ -441,9 +441,9 @@ Ejemplo: si dice "derivadas", primero explica que necesita saber funciones y lim
 **Paso 3 - Explora por tu cuenta** - Reto personal, recursos avanzados, comunidades, ensenar a otros
 **Paso 4 - Dominio: vuelvete autonomo** - Proyecto final, evaluacion, contribuir, plan de continuidad
 
-Usa **negritas** para conceptos clave. Incluye CODIGO si es programacion. NUNCA des URLs de videos. Recomienda autores/creadores YOUTUBEROS ("Busca a [nombre] en YouTube").
+Usa **negritas** para conceptos clave. Incluye CODIGO si es programacion. NUNCA des URLs de videos. Recomienda autores/creadores YOUTUBEROS ("Busca a [nombre] en YouTube"). NUNCA uses emojis.
 
-Termina con entusiasmo: "Quieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?"
+Termina con: "Quieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?"
 
 Manten el contexto de la conversacion.`
 

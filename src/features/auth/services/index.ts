@@ -1,5 +1,5 @@
 import { LocalStorageService } from '@shared/services/LocalStorageService'
-import { UserRepository } from '@shared/services/repositories/UserRepository'
+import { UserRepository } from '@shared/services/UserRepository'
 import type { AuthResponse, User } from '@shared/types'
 
 interface AuthUser {

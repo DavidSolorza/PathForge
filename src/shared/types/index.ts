@@ -112,17 +112,17 @@ export type Category =
   | 'deportes'
   | 'otros'
 
-export const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
-  { value: 'tecnologia', label: 'Tecnología', emoji: '💻' },
-  { value: 'idiomas', label: 'Idiomas', emoji: '🌍' },
-  { value: 'diseno', label: 'Diseño', emoji: '🎨' },
-  { value: 'musica', label: 'Música', emoji: '🎵' },
-  { value: 'arte', label: 'Arte', emoji: '🖼️' },
-  { value: 'negocios', label: 'Negocios', emoji: '💼' },
-  { value: 'productividad', label: 'Productividad', emoji: '⚡' },
-  { value: 'ciencias', label: 'Ciencias', emoji: '🔬' },
-  { value: 'cocina', label: 'Cocina', emoji: '🍳' },
-  { value: 'fotografia', label: 'Fotografía', emoji: '📷' },
-  { value: 'deportes', label: 'Deportes', emoji: '🏃' },
-  { value: 'otros', label: 'Otros', emoji: '📚' },
+export const CATEGORIES: { value: Category; label: string }[] = [
+  { value: 'tecnologia', label: 'Tecnología' },
+  { value: 'idiomas', label: 'Idiomas' },
+  { value: 'diseno', label: 'Diseño' },
+  { value: 'musica', label: 'Música' },
+  { value: 'arte', label: 'Arte' },
+  { value: 'negocios', label: 'Negocios' },
+  { value: 'productividad', label: 'Productividad' },
+  { value: 'ciencias', label: 'Ciencias' },
+  { value: 'cocina', label: 'Cocina' },
+  { value: 'fotografia', label: 'Fotografía' },
+  { value: 'deportes', label: 'Deportes' },
+  { value: 'otros', label: 'Otros' },
 ]

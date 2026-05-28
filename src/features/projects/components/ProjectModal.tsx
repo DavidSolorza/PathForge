@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, FolderGit2, Save } from 'lucide-react'
 import { ProjectStorageService } from '../services/ProjectStorageService'
-import { useProjectStore } from '../store'
+import { useProjectStore } from '@core/store'
 import { Button } from '@shared/components/ui/Button'
 import { Input } from '@shared/components/ui/Input'
 import { useToastStore } from '@shared/store/toastStore'
@@ -14,7 +14,7 @@ interface ProjectModalProps {
 }
 
 export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
-  const refresh = useProjectStore((s) => s.refresh)
+  const setProjects = useProjectStore((s) => s.setProjects)
   const addToast = useToastStore((s) => s.addToast)
 
   const isEditing = !!editId
@@ -99,7 +99,7 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
         })
         addToast('success', 'Proyecto creado')
       }
-      refresh()
+      setProjects(ProjectStorageService.getAll())
       onClose()
     } catch {
       addToast('error', 'Error al guardar el proyecto')
