@@ -2,12 +2,14 @@ import { Outlet, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { config } from '@core/config'
 import { Sparkles, Shield, Cloud, Code2, Database, Container, GitBranch, Smartphone, Gem } from 'lucide-react'
+import { BackgroundAnimation } from '@shared/components/ui/BackgroundAnimation'
 
 const bgIcons = [Code2, Database, Container, GitBranch, Smartphone, Shield, Cloud, Sparkles]
 
 export function AuthLayout() {
   return (
-    <div className="flex min-h-svh">
+    <div className="flex min-h-svh relative">
+      <BackgroundAnimation />
       {/* Left panel - decorative */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-800 via-primary-700 to-primary-900 p-12 relative overflow-hidden">
         <div className="absolute inset-0">

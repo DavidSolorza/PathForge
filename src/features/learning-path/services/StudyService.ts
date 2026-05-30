@@ -135,6 +135,10 @@ export const StudyService = {
     return updated
   },
 
+  getTotalMinutes(): number {
+    return load().sessions.reduce((sum, s) => sum + s.duration, 0)
+  },
+
   getWeekStart(): string {
     const now = new Date()
     const start = new Date(now)

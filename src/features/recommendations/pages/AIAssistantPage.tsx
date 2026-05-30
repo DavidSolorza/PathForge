@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bot, Send, User, Trash2, Route, Plus, MessageSquare, Loader2, Clock, BookOpen, BarChart3, FolderKanban } from 'lucide-react'
+import { Bot, Send, User, Trash2, Route, MessageSquare, Loader2, Clock, BookOpen, BarChart3, FolderKanban, Sparkles, ChevronRight, Zap, Target } from 'lucide-react'
 import { usePathStore } from '@core/store'
 import { AiService } from '@features/recommendations/services/AiService'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { RecommendationStorageService } from '@features/recommendations/services/RecommendationStorageService'
-import type { ChatMessage, PathPreferences } from '@shared/types'
+import { ProjectStorageService } from '@features/projects/services/ProjectStorageService'
+import { StudyService } from '@features/learning-path/services/StudyService'
+import type { ChatMessage, PathPreferences, AiUserContext } from '@shared/types'
 import { MessageContent } from '@shared/components/common/MessageContent'
 import { Card } from '@shared/components/ui/Card'
 import { Button } from '@shared/components/ui/Button'
@@ -43,6 +45,12 @@ const PROJECT_TYPES: { value: PathPreferences['projectPreference']; label: strin
   { value: 'largos', label: 'Largos (2+ semanas)' },
 ]
 
+const quickSuggestions = [
+  { text: 'Que deberia aprender despues?', icon: ChevronRight },
+  { text: 'Estoy listo para un proyecto?', icon: Zap },
+  { text: 'Que me falta para mi objetivo?', icon: Target },
+]
+
 export function AIAssistantPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -62,7 +70,7 @@ export function AIAssistantPage() {
     currentLevel: 'beginner',
     projectPreference: 'medianos',
   })
-  const [showSurvey, setShowSurvey] = useState(false)
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesRef = useRef<ChatMessage[]>(messages)
@@ -111,6 +119,24 @@ export function AIAssistantPage() {
     }
   }
 
+  const buildAiContext = useCallback(async (): Promise<AiUserContext> => {
+    const allPaths = await PathStorageService.getAll()
+    const allProjects = await ProjectStorageService.getAll()
+    return {
+      paths: allPaths.map((p) => {
+        const allT = p.stages.flatMap((s) => s.topics)
+        return { title: p.title, progress: p.progress, completed: allT.filter((t) => t.completed).length, total: allT.length, category: p.category }
+      }),
+      projects: allProjects.map((pr) => ({ name: pr.name, status: pr.status, technologies: pr.technologies })),
+      stats: {
+        totalMinutes: StudyService.getTotalMinutes(),
+        streak: StudyService.getStreak(),
+        completedTopics: allPaths.reduce((acc, p) => acc + p.stages.flatMap((s) => s.topics).filter((t) => t.completed).length, 0),
+        totalPaths: allPaths.length,
+      },
+    }
+  }, [])
+
   const handleSend = async () => {
     if (!query.trim() || loading) return
 
@@ -125,8 +151,9 @@ export function AIAssistantPage() {
     setLoading(true)
 
     try {
+      const context = await buildAiContext()
       const current = messagesRef.current
-      const response = await AiService.chat(userMsg.content, current)
+      const response = await AiService.chat(userMsg.content, current, context)
       await addMsg(response)
     } catch {
       await addMsg({
@@ -152,23 +179,29 @@ export function AIAssistantPage() {
 
   const handleGeneratePath = async () => {
     const userMessages = messages.filter((m) => m.role === 'user')
-    const topic = userMessages.length > 0
-      ? userMessages[userMessages.length - 1].content
+    let topic = userMessages.length > 0
+      ? userMessages.map((m) => m.content).join('. ')
       : query.trim()
+
+    const chatHistory = await RecommendationStorageService.getChatHistory()
+    if (chatHistory.length > 0) {
+      const chatUserMessages = chatHistory.filter((m) => m.role === 'user')
+      if (chatUserMessages.length > 0) {
+        const chatContext = chatUserMessages.slice(-5).map((m) => m.content).join('. ')
+        topic = topic ? `${topic}. Contexto adicional del chat: ${chatContext}` : chatContext
+      }
+    }
 
     if (!topic) {
       addToast('info', 'Escribe que quieres aprender primero')
       return
     }
 
-    if (!showSurvey) {
-      setShowSurvey(true)
-      return
-    }
-
     setGenerating(true)
     try {
-      const path = await AiService.generatePath(topic, messages, preferences)
+      const context = await buildAiContext()
+      const combinedMessages = [...chatHistory, ...messages]
+      const path = await AiService.generatePath(topic, combinedMessages, preferences, context)
       setPaths(await PathStorageService.getAll())
       setActivePath(path)
       addToast('success', `Ruta creada: ${path.title}`)
@@ -189,32 +222,64 @@ export function AIAssistantPage() {
 
   const hasApiKey = !!localStorage.getItem('pathforge_gemini_api_key') || !!config.gemini.apiKey
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08 },
+    },
+  }
+
+  const msgVariants = {
+    hidden: { opacity: 0, y: 12, scale: 0.98 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { type: 'spring' as const, stiffness: 300, damping: 25 },
+    },
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-neutral-900">
-              {mode === 'generator' ? 'Generador de rutas' : 'Chat normal'}
+    <div className="space-y-4 sm:space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="flex items-center justify-between flex-wrap gap-3 sm:gap-4"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-primary-700 via-primary-600 to-gold bg-clip-text text-transparent truncate">
+              {mode === 'generator' ? 'Generador de rutas' : 'Asistente IA'}
             </h1>
             <span className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-              hasApiKey 
-                ? "bg-green-50 text-green-700 border border-green-200" 
-                : "bg-amber-50 text-amber-700 border border-amber-200"
+              "inline-flex items-center gap-1 sm:gap-1.5 rounded-full px-2 sm:px-3 py-0.5 text-[10px] sm:text-xs font-medium border transition-all duration-300 flex-shrink-0",
+              hasApiKey
+                ? "bg-green-50 text-green-700 border-green-200/60 shadow-xs"
+                : "bg-amber-50 text-amber-700 border-amber-200/60 shadow-xs"
             )}>
-              <span className={cn("h-1.5 w-1.5 rounded-full", hasApiKey ? "bg-green-500" : "bg-amber-500 animate-pulse")} />
-              {hasApiKey ? 'IA en vivo' : 'IA Simulada (offline)'}
+              <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+                <span className={cn(
+                  "absolute inline-flex h-full w-full rounded-full opacity-75",
+                  hasApiKey ? "bg-green-500 animate-ping" : "bg-amber-500"
+                )} />
+                <span className={cn(
+                  "relative inline-flex h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full",
+                  hasApiKey ? "bg-green-500" : "bg-amber-500"
+                )} />
+              </span>
+              {hasApiKey ? 'IA en vivo' : 'IA Simulada'}
             </span>
           </div>
-          <p className="text-sm text-neutral-500 mt-1">
+          <p className="text-xs sm:text-sm text-neutral-500 mt-1 sm:mt-1.5 ml-0.5">
             {mode === 'generator'
               ? 'Describe que quieres aprender y genera una ruta personalizada'
               : 'Pregunta lo que quieras sobre tu aprendizaje'}
             {!hasApiKey && (
-              <span className="block text-xs text-neutral-400 mt-0.5">
-                Modo simulación activo. Conecta tu clave en tu{' '}
-                <button onClick={() => navigate('/profile')} className="underline text-primary-600 hover:text-primary-700 cursor-pointer">
+              <span className="block text-[10px] sm:text-xs text-neutral-400 mt-1">
+                Modo simulacion activo. Conecta tu clave en tu{' '}
+                <button onClick={() => navigate('/profile')} className="font-medium text-gold hover:text-gold-dark underline-offset-2 hover:underline transition-all cursor-pointer">
                   Perfil
                 </button>{' '}
                 para usar IA real en vivo.
@@ -222,137 +287,163 @@ export function AIAssistantPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-neutral-200 p-0.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex rounded-xl border border-neutral-200 p-0.5 bg-neutral-50/50 shadow-xs">
             <button
               onClick={() => switchMode('chat')}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                mode === 'chat' ? 'bg-primary-600 text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
+                'flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200',
+                mode === 'chat'
+                  ? 'bg-white text-primary-700 shadow-sm border border-primary-200'
+                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-white/50',
               )}
             >
-              <MessageSquare className="h-4 w-4" />
-              Chat normal
+              <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Chat </span>normal
             </button>
             <button
               onClick={() => switchMode('generator')}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                mode === 'generator' ? 'bg-primary-600 text-white shadow-sm' : 'text-neutral-500 hover:text-neutral-700',
+                'flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200',
+                mode === 'generator'
+                  ? 'bg-gold text-white shadow-sm border border-gold-dark'
+                  : 'text-neutral-500 hover:text-neutral-700 hover:bg-white/50',
               )}
             >
-              <Route className="h-4 w-4" />
-              Generador rutas
+              <Route className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Generador </span>rutas
             </button>
           </div>
           {messages.length > 0 && (
             <Button variant="ghost" size="sm" icon={<Trash2 className="h-4 w-4" />} onClick={handleClear}>
-              Limpiar
+              <span className="hidden sm:inline">Limpiar</span>
             </Button>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {mode === 'generator' && messages.length === 0 && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-primary-200 bg-primary-50 px-5 py-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="rounded-xl border border-primary-200/60 bg-gradient-to-br from-primary-50 to-primary-50/50 px-5 py-4 shadow-xs"
+        >
           <div className="flex items-start gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-100 text-primary-600 flex-shrink-0">
-              <Plus className="h-4 w-4" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold-dark text-white shadow-xs flex-shrink-0">
+              <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-medium text-primary-800">Que quieres aprender?</p>
-              <p className="text-sm text-primary-600 mt-1">Escribe tu meta y luego ajustaremos la ruta a tu ritmo. Ej: "Quiero aprender Python desde cero", "React para frontend"</p>
+              <p className="text-sm font-semibold text-primary-800">Que quieres aprender?</p>
+              <p className="text-sm text-primary-600 mt-1 leading-relaxed">Escribe tu meta y luego ajustaremos la ruta a tu ritmo. Ej: "Quiero aprender Python desde cero", "React para frontend"</p>
             </div>
           </div>
         </motion.div>
       )}
 
-      <Card className="flex flex-col h-[calc(100vh-24rem)]">
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+      <Card className="flex flex-col h-[calc(100vh-14rem)] sm:h-[calc(100vh-16rem)] overflow-hidden p-0 border-neutral-200/80 shadow-sm">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 sm:py-6 space-y-3 sm:space-y-4">
           {messages.length === 0 && !loading && (
             <EmptyState
-              icon={<Bot className="h-10 w-10" />}
+              icon={
+                <motion.div
+                  animate={{ rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <Bot className="h-10 w-10" />
+                </motion.div>
+              }
               title={mode === 'generator' ? 'Que quieres aprender?' : 'En que puedo ayudarte?'}
               description={mode === 'generator' ? 'Describe el tema y genera una ruta personalizada' : 'Pregunta sobre tus rutas, progreso o recursos'}
             />
           )}
 
-          {messages.map((msg) => (
+          {messages.length > 0 && (
             <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="space-y-4"
             >
-              {msg.role === 'assistant' && (
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-100 text-primary-600 flex-shrink-0">
-                  <Bot className="h-4 w-4" />
-                </div>
-              )}
-              <div className={`max-w-[80%] rounded-xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user' ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-800'
-              }`}>
-                <MessageContent content={msg.content} role={msg.role} />
-              </div>
-              {msg.role === 'user' && (
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-200 text-neutral-600 flex-shrink-0">
-                  <User className="h-4 w-4" />
-                </div>
-              )}
+              {messages.map((msg) => (
+                <motion.div
+                  key={msg.id}
+                  variants={msgVariants}
+                  layout
+                  className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 text-primary-600 flex-shrink-0 shadow-xs mt-0.5">
+                      <Bot className="h-[18px] w-[18px]" />
+                    </div>
+                  )}
+                  <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed transition-shadow duration-200 ${
+                    msg.role === 'user'
+                      ? 'bg-primary-600 text-white shadow-sm rounded-tr-md'
+                      : 'bg-neutral-50 text-neutral-800 border border-neutral-200/60 shadow-xs rounded-tl-md'
+                  }`}>
+                    <MessageContent content={msg.content} role={msg.role} />
+                  </div>
+                  {msg.role === 'user' && (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-200/70 text-neutral-600 flex-shrink-0 mt-0.5">
+                      <User className="h-[18px] w-[18px]" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
+          )}
 
           {loading && (
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-100 text-primary-600">
-                <Bot className="h-4 w-4" />
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 text-primary-600 shadow-xs">
+                <Bot className="h-[18px] w-[18px]" />
               </div>
-              <div className="rounded-xl bg-neutral-100 px-4 py-3">
-                <div className="flex gap-1">
-                  <span className="h-2 w-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-2 w-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-2 w-2 rounded-full bg-neutral-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="rounded-2xl bg-neutral-50 border border-neutral-200/60 px-5 py-4 shadow-xs rounded-tl-md">
+                <div className="flex gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.2s' }} />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.2s' }} />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gold/60 animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1.2s' }} />
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t border-neutral-200 p-4 space-y-3">
-          {mode === 'generator' && !showSurvey && (
-            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}>
-              <button
-                onClick={handleGeneratePath}
-                disabled={generating || loading || !getTopicHint()}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-medium text-primary-700 hover:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Route className="h-4 w-4" />
-                Personalizar ruta y generar
-              </button>
-            </motion.div>
-          )}
-
-          {mode === 'generator' && showSurvey && (
-            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-              <div className="text-sm font-medium text-neutral-700">Personaliza tu ruta</div>
+        <div className="border-t border-neutral-200/80 bg-neutral-50/30 p-3 sm:p-4 space-y-3">
+          {mode === 'generator' && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="space-y-4 sm:space-y-5 rounded-xl border border-neutral-200/80 bg-white p-3 sm:p-5 shadow-xs"
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-1 rounded-full bg-gold" />
+                <span className="text-xs sm:text-sm font-semibold text-neutral-800">Personaliza tu ruta</span>
+              </div>
 
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-neutral-500 mb-2">
-                  <Clock className="h-3.5 w-3.5" />
+                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
                   Tiempo disponible por semana
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                   {WEEKLY_HOURS.map((h) => (
                     <button
                       key={h.value}
                       onClick={() => setPreferences(p => ({ ...p, weeklyHours: h.value }))}
                       className={cn(
-                        'flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-all',
+                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
                         preferences.weeklyHours === h.value
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
                       )}
                     >
                       {h.label}
@@ -362,20 +453,20 @@ export function AIAssistantPage() {
               </div>
 
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-neutral-500 mb-2">
-                  <BookOpen className="h-3.5 w-3.5" />
+                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                  <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
                   Como prefieres aprender?
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
                   {LEARNING_METHODS.map((m) => (
                     <button
                       key={m.value}
                       onClick={() => setPreferences(p => ({ ...p, learningMethod: m.value }))}
                       className={cn(
-                        'flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-all',
+                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
                         preferences.learningMethod === m.value
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
                       )}
                     >
                       {m.label}
@@ -385,20 +476,20 @@ export function AIAssistantPage() {
               </div>
 
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-neutral-500 mb-2">
-                  <BarChart3 className="h-3.5 w-3.5" />
+                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                  <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
                   Tu nivel actual
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   {LEVELS.map((l) => (
                     <button
                       key={l.value}
                       onClick={() => setPreferences(p => ({ ...p, currentLevel: l.value }))}
                       className={cn(
-                        'flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-all',
+                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
                         preferences.currentLevel === l.value
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
                       )}
                     >
                       {l.label}
@@ -408,20 +499,20 @@ export function AIAssistantPage() {
               </div>
 
               <div>
-                <label className="flex items-center gap-2 text-xs font-medium text-neutral-500 mb-2">
-                  <FolderKanban className="h-3.5 w-3.5" />
+                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                  <FolderKanban className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
                   Tipo de proyectos
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   {PROJECT_TYPES.map((pt) => (
                     <button
                       key={pt.value}
                       onClick={() => setPreferences(prev => ({ ...prev, projectPreference: pt.value }))}
                       className={cn(
-                        'flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-all',
+                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
                         preferences.projectPreference === pt.value
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
+                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
                       )}
                     >
                       {pt.label}
@@ -430,69 +521,59 @@ export function AIAssistantPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowSurvey(false)}
-                  className="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 transition-colors"
-                >
-                  Volver
-                </button>
-                <button
-                  onClick={handleGeneratePath}
-                  disabled={generating}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {generating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Route className="h-4 w-4" />
-                  )}
-                  {generating ? 'Generando...' : 'Generar ruta personalizada'}
-                </button>
-              </div>
+              <button
+                onClick={handleGeneratePath}
+                disabled={generating}
+                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-dark px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white hover:from-gold-dark hover:to-gold-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm active:scale-[0.98]"
+              >
+                {generating ? (
+                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200" />
+                )}
+                {generating ? 'Generando...' : 'Generar ruta personalizada'}
+              </button>
             </motion.div>
           )}
 
           {mode === 'chat' && messages.length === 0 && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => { setQuery('Que deberia aprender despues?'); }}
-                className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all"
-              >
-                Que deberia aprender despues?
-              </button>
-              <button
-                onClick={() => { setQuery('Estoy listo para un proyecto?'); }}
-                className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all"
-              >
-                Estoy listo para un proyecto?
-              </button>
-              <button
-                onClick={() => { setQuery('Que me falta para alcanzar mi objetivo?'); }}
-                className="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50 transition-all"
-              >
-                Que me falta para mi objetivo?
-              </button>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-wrap gap-1.5 sm:gap-2"
+            >
+              {quickSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.text}
+                  onClick={() => { setQuery(suggestion.text) }}
+                  className="group inline-flex items-center gap-1 sm:gap-1.5 rounded-xl border border-neutral-200/80 bg-white px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-neutral-600 hover:border-gold/40 hover:text-gold-dark hover:bg-gold/5 hover:shadow-xs transition-all duration-200"
+                >
+                  <suggestion.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-neutral-400 group-hover:text-gold transition-colors duration-200" />
+                  {suggestion.text}
+                </button>
+              ))}
+            </motion.div>
           )}
 
           <form
             onSubmit={(e) => { e.preventDefault(); handleSend() }}
-            className="flex gap-3"
+            className="flex gap-2 sm:gap-3"
           >
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={mode === 'generator' ? "Ej: Quiero aprender Python desde cero" : "Ej: Que sigue despues de esta ruta?"}
-              className="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all"
-              disabled={loading || generating}
-            />
+            <div className="relative flex-1 min-w-0">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={mode === 'generator' ? "Ej: Quiero aprender Python desde cero" : "Ej: Que sigue despues de esta ruta?"}
+                className="w-full rounded-xl border border-neutral-200/80 bg-white px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-gold/50 focus:outline-none focus:ring-2 focus:ring-gold/15 focus:bg-white transition-all duration-200 shadow-xs"
+                disabled={loading || generating}
+              />
+            </div>
             <button
               type="submit"
               disabled={!query.trim() || loading || generating}
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-gradient-to-br from-gold to-gold-dark text-white hover:from-gold-dark hover:to-gold-dark disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 shadow-sm hover:shadow-md flex-shrink-0"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </button>
           </form>
         </div>

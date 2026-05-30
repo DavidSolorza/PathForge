@@ -32,6 +32,7 @@ export const ProjectStorageService = {
   async create(input: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     const project: Project = {
       ...input,
+      progress: input.progress ?? 0,
       id: 'proj_' + Date.now(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

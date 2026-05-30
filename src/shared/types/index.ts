@@ -63,8 +63,10 @@ export interface Project {
   description: string
   technologies: string[]
   status: 'draft' | 'in_progress' | 'completed' | 'archived'
+  progress: number
   repoUrl?: string
   demoUrl?: string
+  notes?: string
   createdAt: string
   updatedAt: string
 }
@@ -90,6 +92,17 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+}
+
+export interface AiUserContext {
+  paths: { title: string; progress: number; completed: number; total: number; category: string }[]
+  projects: { name: string; status: string; technologies: string[] }[]
+  stats: {
+    totalMinutes: number
+    streak: number
+    completedTopics: number
+    totalPaths: number
+  }
 }
 
 export interface StudySession {

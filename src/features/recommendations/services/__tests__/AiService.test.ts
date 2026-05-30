@@ -63,8 +63,8 @@ describe('AiService', () => {
 
     it('returns generic fallback for unknown topic', async () => {
       const msg = await AiService.chat('explícame la teoría de cuerdas')
-      expect(msg.content).toContain('Paso 1')
       expect(msg.content).toContain('Fundamentos')
+      expect(msg.content).toContain('Plan de aprendizaje')
     })
 
     it('includes programming-specific fallback for docker', async () => {

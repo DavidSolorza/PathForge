@@ -1,5 +1,4 @@
-import type { LearningPath, Category, ChatMessage, Resource } from '@shared/types'
-import { CATEGORIES } from '@shared/types'
+import type { LearningPath, Category, ChatMessage, Resource, AiUserContext } from '@shared/types'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
 import { config } from '@core/config'
@@ -328,15 +327,14 @@ function findSpecificTopics(goal: string): { stages: { name: string; topics: Top
   }
 }
 
-async function generateAITopics(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences): Promise<{ stages: { name: string; topics: TopicDef[] }[] } | null> {
+async function generateAITopics(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences, userContext?: AiUserContext): Promise<{ stages: { name: string; topics: TopicDef[] }[] } | null> {
   const apiKey = localStorage.getItem('pathforge_gemini_api_key') || config.gemini.apiKey
   if (!apiKey) return null
   let contextText = ''
   if (context && context.length > 0) {
-    const ctxMessages = context.filter((m) => m.role === 'user').slice(-6)
-    if (ctxMessages.length > 0) {
-      contextText = '\nContexto de la conversacion:\n' + ctxMessages.map((m) => `- ${m.content}`).join('\n')
-    }
+    const relevantMessages = context.slice(-20)
+    const allMessages = relevantMessages.map((m) => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n')
+    contextText = '\n\nCONVERSACION COMPLETA (usa esto para entender EXACTAMENTE que quiere el usuario, su nivel, y que temas ya conoce):\n' + allMessages
   }
 
   let preferencesText = ''
@@ -348,7 +346,34 @@ async function generateAITopics(goal: string, context?: ChatMessage[], preferenc
     preferencesText = `\n\nPREFERENCIAS DEL USUARIO:\n- Tiempo semanal: ${hoursLabel[preferences.weeklyHours]}\n- Metodo preferido: ${methodLabel[preferences.learningMethod]}\n- Nivel actual: ${levelLabel[preferences.currentLevel]}\n- Proyectos: ${projectLabel[preferences.projectPreference]}`
   }
 
-  const prompt = `Genera ruta aprendizaje para "${goal}".${contextText}${preferencesText}\n\nREGLAS:\n- SOLO JSON: {"stages":[{"name":"...","topics":[{"name":"...","content":"...","resources":[{"title":"...","url":"real_url","type":"documentation"}]]}]}\n- 4 stages, 5 topics c/u\n- Cada topic debe tener "content" con una mini-clase explicativa (3-5 lineas con codigo si aplica)\n- "resources" debe incluir URLs reales a documentacion oficial (MDN, python.org, react.dev, etc.)\n- Nombres MUY especificos con ejemplos practicos\n- ADAPTATE a las preferencias del usuario (tiempo, metodo, nivel, tipo de proyectos)\n- Espanol. Sin markdown alrededor del JSON.`
+  let userContextText = ''
+  if (userContext) {
+    if (userContext.paths.length > 0) {
+      userContextText += '\n\nRUTAS EXISTENTES DEL USUARIO (no repitas temas que ya tiene):\n'
+      userContext.paths.forEach((p) => {
+        userContextText += `- "${p.title}" (${p.progress}% completado, ${p.completed}/${p.total} temas)\n`
+      })
+    }
+    if (userContext.stats.completedTopics > 0) {
+      userContextText += `\nESTADISTICAS: ${userContext.stats.completedTopics} temas completados, ${userContext.stats.totalMinutes} minutos estudiados\n`
+    }
+  }
+
+  const prompt = `Genera una ruta de aprendizaje personalizada. Usa el contexto de la conversacion para entender EXACTAMENTE que quiere aprender el usuario, su nivel actual, y que temas ya conoce.
+
+Objetivo del usuario: "${goal}"${contextText}${preferencesText}${userContextText}
+
+REGLAS:
+- SOLO JSON: {"stages":[{"name":"...","topics":[{"name":"...","content":"...","resources":[{"title":"...","url":"real_url","type":"documentation"}]]}]}
+- 4 stages, 5 topics cada uno
+- Cada topic DEBE tener "content" con mini-clase explicativa de 3-5 lineas CON CODIGO si aplica
+- "resources" debe incluir URLs reales a documentacion oficial
+- Los nombres deben ser muy especificos con ejemplos practicos
+- ADAPTATE a las preferencias del usuario
+- MUY IMPORTANTE: Si la conversacion muestra que el usuario ya sabe ciertos conceptos o ya tiene rutas completadas, NO incluyas esos temas. Empieza desde donde le corresponde.
+- Si el usuario menciono temas especificos en el chat, INCLUYELOS en la ruta
+- La ruta debe ser COMPLETA y cubrir todos los aspectos del tema, no solo una parte
+- Espanol. Sin markdown alrededor del JSON.`
 
   try {
     const res = await fetch(`${config.gemini.apiUrl}?key=${apiKey}`, {
@@ -432,80 +457,53 @@ function generateTitle(goal: string): string {
   return topic.charAt(0).toUpperCase() + topic.slice(1)
 }
 
-const SYSTEM_PROMPT = `Eres un PROFESOR UNIVERSAL experto en ABSOLUTAMENTE TODAS las areas del conocimiento. Eres el corazon de PathForge AI, una plataforma inteligente que genera rutas personalizadas de aprendizaje y recomienda nuevas habilidades segun el avance del usuario. Hablas espanol. Eres paciente, claro, didactico, profesional, adaptable, amigable y preciso.
+const SYSTEM_PROMPT = `Eres un mentor personal de aprendizaje en PathForge AI. Hablas espanol de forma natural, como un amigo experto que da consejos directos y utiles. No eres un libro de texto ni un bot generico. Eres cercano, directo y te importa el progreso real del usuario.
 
-## Areas que dominas (Programacion y Tecnologia):
-1. **Desarrollo Web** (HTML, CSS, JavaScript, TypeScript, React, Next.js, Vue, Angular, Tailwind CSS)
-2. **Backend** (Node.js, Express, NestJS, APIs REST, GraphQL)
-3. **Bases de datos** (SQL, PostgreSQL, MySQL, MongoDB, Supabase, Firebase)
-4. **DevOps** (Docker, Linux, CI/CD, GitHub Actions, Deploy, Vercel, Railway, Render)
-5. **Desarrollo Movil** (React Native, Expo, Flutter)
-6. **Inteligencia Artificial** (Python, Machine Learning, Deep Learning, OpenAI, NLP, Vision)
-7. **Ciberseguridad** (Redes, OWASP, Pentesting, Criptografia, Kali Linux, Wireshark)
-8. **Diseno UX/UI** (Figma, Diseno responsive, Branding, Psicologia del color, Dashboards)
-9. **Matematicas y Ciencias** (Algebra, Calculo, Estadistica, Logica, Fisica computacional)
-10. **Herramientas digitales** (Excel, Notion, Google Drive, Git, Linux)
-11. **Arquitectura y Patrones** (Clean Code, SOLID, MVC, Microservicios, Clean Architecture)
-12. **Testing** (Jest, Cypress, RTL, Pruebas unitarias, E2E)
+DOMINAS: desarrollo web (HTML, CSS, JS, React, Vue, Angular), backend (Node, Express, APIs, SQL, NoSQL), DevOps (Docker, CI/CD, deploy), mobile (React Native, Flutter), IA/ML (Python, TensorFlow), ciberseguridad, testing, y herramientas digitales.
 
-## Capacidades pedagogicas:
-- Explica desde nivel BASICO hasta AVANZADO
-- Adaptate a NINOS o ADULTOS
-- Resuelve dudas PASO A PASO
-- Genera EJERCICIOS y QUIZZES
-- Ensena con EJEMPLOS concretos
-- Detecta ERRORES comunes y explicelos
-- Recomienda RECURSOS y autores para buscar
-- Crea PLANES DE ESTUDIO personalizados
-- SIMULA EXAMENES y entrevistas
-- HAZ RESUMENES y mapas mentales
+REGLAS DE ORO:
+1. Se directo. Nada de introducciones genericas. Ve al grano en la primera linea.
+2. Habla como una persona real. Usa frases cortas. Pregunta, opina, sugiere. Usa expresiones naturales como "mira", "te cuento", "la verdad es que", "oye".
+3. Si ves datos del usuario (rutas, proyectos, estadisticas) USALOS. Di cosas como "Veo que completaste X temas" o "Tu ruta de React va al 60%".
+4. Cuando alguien dice que termino una ruta, revisa sus datos y recomienda el siguiente paso CONCRETO: un proyecto especifico, una tecnologia complementaria, o consolidar con ejercicios.
+5. Da ejemplos con codigo cuando sea relevante.
+6. Recomienda autores/creadores en YouTube por nombre. NUNCA pongas URLs de videos.
+7. No uses emojis. Usa **negritas** para enfatizar.
+8. Adapta tu tono: principiante = paciente y sencillo. Avanzado = tecnico y retador.
+9. Deja siempre una pregunta abierta al final para seguir la conversacion.
+10. NUNCA digas "Como asistente" o "Como IA". Eres un mentor.
+11. Si el usuario dice "ya acabe", "ya termine", "complete la ruta" o similar, asume que termino una ruta y analiza sus datos para darle el siguiente paso.
+12. Si el usuario pregunta si esta listo para un proyecto, analiza sus temas completados y dale una respuesta honesta: si tiene menos de 10 temas, dile que practique mas. Si tiene mas de 10, dale proyectos especificos.
 
-## Funciones analiticas clave (PathForge AI):
-El usuario puede hacerte estas preguntas ESPECIFICAS. Responde analizando su progreso, proyectos y habilidades:
+QUE HACER EN CADA CASO:
+- "Progreso" o "como voy": revisa sus estadisticas reales y da numeros concretos mas una recomendacion.
+- "Que sigue" o "despues": mira sus rutas incompletas y sugiere terminar esas antes de empezar nuevas, o recomienda la siguiente tecnologia logica.
+- "Listo para proyecto" o "puedo hacer un proyecto": evalua sus temas completados. Si tiene menos de 10, sugiere practicar mas. Si tiene mas de 10, recomienda proyectos especificos para su stack.
+- "Me falta para mi objetivo": identifica la brecha entre su estado actual y su meta.
+- "Termine una ruta" o "ya acabe": felicita brevemente y da el siguiente paso concreto (proyecto, profundizar, o nueva ruta relacionada). Analiza que tecnologias aprendio y sugiere proyectos que usen esas tecnologias.
+- Tema nuevo: explica prerrequisitos primero, luego el plan.
 
-**"Que deberia aprender despues?"** - Analiza su ruta actual, mira que temas ha completado y recomienda el siguiente paso logico. Revisa proyectos y habilidades registradas.
+CUANDO EL USUARIO TERMINA UNA RUTA:
+1. Felicitalo brevemente (1 linea maximo)
+2. Revisa que tecnologias aprendio en esa ruta
+3. Sugierele UN proyecto concreto que use esas tecnologias
+4. Dile que habilidades le faltan para ese proyecto
+5. Preguntale si quiere que le genere una ruta para esas habilidades faltantes
 
-**"Estoy listo para un proyecto?"** - Evalua si tiene los conocimientos suficientes. Pregunta que proyecto quiere hacer, analiza los prerrequisitos y determina si esta preparado o que le falta.
+EJEMPLO DE BUENA RESPUESTA CUANDO TERMINAN UNA RUTA:
+"Felicidades por terminar Python. Ahora que sabes variables, funciones, POO y manejo de archivos, te recomiendo este proyecto: un gestor de tareas en terminal que guarde los datos en un archivo JSON. Te va a faltar aprender sobre argparse para los argumentos de linea de comandos, pero eso lo puedes aprender en 1 hora. Quieres que te genere una ruta rapida para eso?"
 
-**"Que me falta para alcanzar mi objetivo?"** - El usuario describe su meta (ej: "ser desarrollador full stack"). Comparamos su estado actual con el objetivo y listamos las brechas (habilidades faltantes, temas no cubiertos).
+Manten respuestas de 3-5 parrafos. Conversacional pero con sustancia.`
 
-**"Crea una ruta de aprendizaje para X"** - Genera un plan completo paso a paso desde cero hasta dominio.
-
-## Modos de respuesta:
-Segun lo que pida el usuario, adapta tu respuesta:
-- **Modo profesor:** explicacion completa y estructurada
-- **Modo examen:** preguntas para evaluar conocimiento
-- **Modo practica:** ejercicios para resolver
-- **Modo explicacion sencilla:** para ninos o principiantes absolutos
-- **Modo experto:** respuestas tecnicas y profundas
-- **Modo resumido:** solo lo esencial
-
-## Tipos de preguntas que debes soportar:
-"Como funciona?", "Explicame paso a paso", "Resuelvelo", "Corrige mi error", "Ensename desde cero", "Hazme ejercicios", "Evaluame", "Comparte ejemplos", "Haz un resumen", "Crea un proyecto", "Ayudame a estudiar", "Dame retos", "Simula un examen"
-
-## Regla de oro: PRERREQUISITOS primero
-Cuando el usuario diga "quiero aprender X", tu primera reaccion debe ser:
-1. Identifica QUE NECESITA SABER ANTES de empezar X
-2. Explica esos prerrequisitos de forma breve y clara
-3. Solo entonces estructura el plan completo
-
-Ejemplo: si dice "derivadas", primero explica que necesita saber funciones y limites. Si dice "React", primero HTML/CSS/JS. Si dice "guitarra", partes basicas. No lo mandes a buscar hasta que entienda los fundamentos.
-
-## Estructura de respuesta cuando pide un tema nuevo:
-**TEMA:** [nombre]
-**NIVEL:** [principiante / intermedio / avanzado]
-**PRERREQUISITOS:** [lo que debe saber antes, explicado breve]
-
-**Paso 1 - Cimientos: lo que necesitas saber** - Conceptos clave, terminologia, ejemplo practico, errores comunes al empezar
-**Paso 2 - Manos a la obra: practica guiada** - Primeros ejercicios, tecnica paso a paso, aplicacion real
-**Paso 3 - Explora por tu cuenta** - Reto personal, recursos avanzados, comunidades, ensenar a otros
-**Paso 4 - Dominio: vuelvete autonomo** - Proyecto final, evaluacion, contribuir, plan de continuidad
-
-Usa **negritas** para conceptos clave. Incluye CODIGO si es programacion. NUNCA des URLs de videos. Recomienda autores/creadores YOUTUBEROS ("Busca a [nombre] en YouTube"). NUNCA uses emojis.
-
-Termina con: "Quieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?"
-
-Manten el contexto de la conversacion.`
+function buildContextBlock(ctx: AiUserContext): string {
+  const pathsText = ctx.paths.length > 0
+    ? ctx.paths.map((p) => `- "${p.title}" (${p.progress}% completado, ${p.completed}/${p.total} temas, categoria: ${p.category})`).join('\n')
+    : 'Sin rutas creadas aun.'
+  const projectsText = ctx.projects.length > 0
+    ? ctx.projects.map((p) => `- "${p.name}" (${p.status}) [${p.technologies.join(', ')}]`).join('\n')
+    : 'Sin proyectos registrados aun.'
+  return `DATOS DEL USUARIO (usa estos datos para personalizar tu respuesta si es relevante):\n\nEstadisticas:\n- Minutos totales estudiados: ${ctx.stats.totalMinutes}\n- Racha actual: ${ctx.stats.streak} dias\n- Temas completados: ${ctx.stats.completedTopics}\n- Rutas creadas: ${ctx.stats.totalPaths}\n\nRutas de aprendizaje:\n${pathsText}\n\nProyectos:\n${projectsText}`
+}
 
 async function callGemini(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
   const apiKey = localStorage.getItem('pathforge_gemini_api_key') || config.gemini.apiKey
@@ -553,16 +551,28 @@ export const AiService = {
     }
   },
 
-  async generatePath(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences): Promise<LearningPath> {
-    const { category, difficulty } = detectCategory(goal)
-    const title = generateTitle(goal)
-    const specific = findSpecificTopics(goal)
+  async generatePath(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences, userContext?: AiUserContext): Promise<LearningPath> {
+    const mergedGoal = goal
+    let { category } = detectCategory(mergedGoal)
+    const { difficulty } = detectCategory(mergedGoal)
+
+    if (userContext && userContext.paths.length > 0) {
+      const existingCats = userContext.paths.map((p) => p.category)
+      const topCat = existingCats.sort((a, b) => existingCats.filter((c) => c === a).length - existingCats.filter((c) => c === b).length).pop()
+      if (topCat && !mergedGoal.toLowerCase().includes(topCat)) {
+        const detected = detectCategory(topCat + ' ' + mergedGoal)
+        category = detected.category
+      }
+    }
+
+    const title = generateTitle(mergedGoal)
+    const specific = findSpecificTopics(mergedGoal)
     let stagesData = specific
     if (!stagesData) {
-      stagesData = await generateAITopics(goal, context, preferences) || GENERIC_TOPICS
+      stagesData = await generateAITopics(mergedGoal, context, preferences, userContext) || GENERIC_TOPICS
     }
-    const stages = stagesFromDefs(stagesData, goal)
-    const path = PathStorageService.create({ title, goal, category, difficulty, stages })
+    const stages = stagesFromDefs(stagesData, mergedGoal)
+    const path = PathStorageService.create({ title, goal: mergedGoal, category, difficulty, stages })
     UserStorageService.updateStats((prev) => ({ ...prev, totalPaths: prev.totalPaths + 1, favoriteCategory: category }))
     UserStorageService.addActivity({ id: `act_${Date.now()}`, type: 'path_created', title: `Nueva ruta: ${title}`, pathName: title, timestamp: new Date().toISOString() })
     return path
@@ -589,14 +599,17 @@ export const AiService = {
     return advice + '\n**Consejo:** Sesiones de 25 min con descansos de 5 (Pomodoro).'
   },
 
-  async chat(userMessage: string, history?: ChatMessage[]): Promise<ChatMessage> {
-    let content = ''
-    const allMessages = history ? [...history, { role: 'user', content: userMessage }] : [{ role: 'user', content: userMessage }]
+  async chat(userMessage: string, history?: ChatMessage[], context?: AiUserContext): Promise<ChatMessage> {
+    const contextBlock = context ? buildContextBlock(context) : ''
+    const allMessages = history
+      ? [...(context ? [{ role: 'user' as const, content: contextBlock }] : []), ...history, { role: 'user' as const, content: userMessage }]
+      : [{ role: 'user' as const, content: userMessage }]
 
+    let content: string
     try {
       content = await callGemini(SYSTEM_PROMPT, allMessages.map((m) => ({ role: m.role, content: m.content })))
     } catch {
-      content = getSmartFallback(userMessage)
+      content = getSmartFallback(userMessage, context)
     }
 
     return { id: `msg_${Date.now()}_ai`, role: 'assistant', content, timestamp: new Date().toISOString() }
@@ -612,77 +625,198 @@ function extractTopic(msg: string): string {
   return ''
 }
 
-function getSmartFallback(msg: string): string {
+function getSmartFallback(msg: string, context?: AiUserContext): string {
   const m = msg.toLowerCase()
 
-  // === CHECK-INS: progreso, readiness, proyectos ===
   const checkProgress = m.includes('progreso') || m.includes('avance') || m.includes('como voy') || m.includes('cuanto llevo')
-  const checkReadiness = m.includes('listo') || m.includes('preparado') || m.includes('suficiente') || m.includes('puedo empezar')
+  const checkReadiness = m.includes('listo') || m.includes('preparado') || m.includes('suficiente') || m.includes('puedo empezar') || m.includes('ya puedo')
   const checkProject = m.includes('proyecto') || m.includes('poryecto') || m.includes('project')
   const checkNext = m.includes('que sigue') || m.includes('siguiente') || m.includes('despues') || m.includes('next')
   const checkAnalyze = m.includes('analiza') || m.includes('analisis') || m.includes('evaluame') || m.includes('evaluacion')
+  const checkGoal = m.includes('objetivo') || m.includes('meta') || m.includes('falta') || m.includes('llegar')
+  const checkCompleted = m.includes('termine') || m.includes('complete') || m.includes('acabe') || m.includes('ya termine') || m.includes('finalice') || m.includes('ya acabe') || m.includes('ya complete') || m.includes('100%') || m.includes('termine la ruta') || m.includes('acabe la ruta') || m.includes('ya acabe') || m.includes('ya termine')
 
-  if (checkAnalyze || checkProgress || (checkReadiness && checkProject) || (checkProgress && checkProject)) {
-    return `**Analisis de progreso - Estas listo para un proyecto?**\n\nPara saber si estas listo, revisa estas 3 areas:\n\n**1. Conceptos fundamentales:**\n- Puedes explicar lo que has aprendido sin mirar tutoriales?\n- Entiendes el "por que" detras de cada linea, no solo el "como"?\n- Has escrito el mismo codigo de memoria, sin copiar y pegar?\n\n**2. Resolucion de problemas:**\n- Cuando te sale un error, sabes por donde empezar a depurar?\n- Has resuelto al menos 5 ejercicios por tu cuenta (sin ver solucion)?\n- Sabes usar Google/documentacion para buscar lo que no sabes?\n\n**3. Autonomia:**\n- Puedes empezar un archivo en blanco y escribir codigo util?\n- Has personalizado o modificado ejemplos existentes?\n- Sabes usar Git para guardar tu progreso?\n\n**Como saber si estas listo:**\n* Si respondiste "si" a la mayoria, estas listo para un proyecto guiado (tipo tutorial con tu propio twist)\n* Si respondiste "si" a todo, lanzate a un proyecto propio\n* Si respondiste "no" en varias, dedica 1-2 semanas mas a hacer ejercicios especificos\n\n**Mi recomendacion:** El mejor momento para empezar un proyecto es cuando tienes miedo de no estar listo. El proyecto te va a ensenar lo que los tutoriales no pueden. Empieza con algo pequeno (que puedas terminar en 1 semana) y ve creciendo.\n\nQuieres que te recomiende ideas de proyectos para empezar?`
+  const hasPaths = context && context.paths.length > 0
+  const hasProjects = context && context.projects.length > 0
+  const hasStats = context && context.stats.completedTopics > 0
+
+  if (checkCompleted) {
+    if (hasPaths) {
+      const p = context!.paths
+      const done = p.filter((path) => path.progress === 100)
+      const inProgress = p.filter((path) => path.progress < 100)
+
+      if (done.length > 0) {
+        const completedPath = done[0]
+        const category = completedPath.category
+
+        const projectIdeas: Record<string, { name: string; tech: string; missing: string }> = {
+          tecnologia: { name: 'una API REST con autenticacion y base de datos', tech: 'Node.js, Express, PostgreSQL, JWT', missing: 'manejo de errores avanzado y testing' },
+          idiomas: { name: 'un blog bilingue con articulos semanales', tech: 'escritura, gramatica avanzada', missing: 'vocabulario tecnico y practica de conversacion' },
+          diseno: { name: 'un portafolio completo con 3 proyectos de diseno', tech: 'Figma, principios de UX', missing: 'investigacion de usuarios y prototipado avanzado' },
+          musica: { name: 'componer una cancion original de 3 minutos', tech: 'teoria musical, produccion basica', missing: 'armonia avanzada y mezcla' },
+          arte: { name: 'una serie de 10 ilustraciones tematicas', tech: 'tecnicas de dibujo, color', missing: 'anatomia avanzada y composicion' },
+          negocios: { name: 'un plan de negocios completo con proyecciones', tech: 'analisis de mercado, finanzas basicas', missing: 'estrategia de crecimiento y fundraising' },
+          productividad: { name: 'un sistema personal de gestion de tareas y habitos', tech: 'metodologias de productividad', missing: 'automatizacion y delegacion' },
+          ciencias: { name: 'un experimento documentado con analisis de datos', tech: 'metodo cientifico, analisis estadistico', missing: 'revision por pares y publicacion' },
+          cocina: { name: 'un menu completo de 5 platos con maridaje', tech: 'tecnicas de cocina, presentacion', missing: 'cocina molecular y gestion de tiempos' },
+          fotografia: { name: 'una serie fotografica tematica de 20 fotos editadas', tech: 'composicion, edicion en Lightroom', missing: 'iluminacion avanzada y narrativa visual' },
+          deportes: { name: 'un plan de entrenamiento de 12 semanas con seguimiento', tech: 'tecnica, condicion fisica', missing: 'nutricion deportiva y prevencion de lesiones' },
+          otros: { name: 'un proyecto personal que demuestre lo aprendido', tech: 'las herramientas de tu ruta', missing: 'aplicacion practica en casos reales' },
+        }
+
+        const idea = projectIdeas[category] || projectIdeas.otros
+
+        return `Felicidades por terminar **${completedPath.title}**. Eso es un logro real.\n\nAhora, la diferencia entre saber y poder hacer es un proyecto. Te recomiendo este:\n\n**Proyecto sugerido:** ${idea.name}\n**Tecnologias que ya tienes:** ${completedPath.title}\n**Lo que te va a faltar:** ${idea.missing}\n\n**Plan concreto:**\n1. Dedica esta semana a planear el proyecto (que va a hacer, que pantallas va a tener)\n2. La siguiente semana, empieza a construir lo basico\n3. En 3 semanas, deberias tener un prototipo funcional\n\n${inProgress.length > 0 ? `\nOjo, tambien tienes ${inProgress.length} ruta${inProgress.length > 1 ? 's' : ''} a medias: ${inProgress.map((p) => `"${p.title}" (${p.progress}%)`).join(', ')}. Te recomiendo terminar esas antes de empezar algo nuevo.` : ''}\n\nQuieres que te genere una ruta rapida para aprender ${idea.missing}?`
+      }
+    }
+
+    return `Felicidades por terminar tu ruta. Ahora viene la parte mas importante: aplicar lo que aprendiste.\n\n**El problema de solo hacer rutas:** Puedes ver 100 tutoriales y sentir que sabes mucho, pero cuando abres un archivo en blanco, no sabes por donde empezar. Eso es normal y se resuelve con proyectos.\n\n**Tu siguiente paso:**\n1. Piensa en un problema real que tengas (algo que te moleste hacer manualmente, una lista que quieras organizar, etc.)\n2. Intenta resolverlo con las tecnologias que aprendiste\n3. No tiene que ser perfecto, tiene que funcionar\n\n**Ejemplos de proyectos por nivel:**\n* **Principiante:** Calculadora, lista de tareas, generador de contrasenas\n* **Intermedio:** Blog personal, dashboard con datos de una API, clon de Twitter basico\n* **Avanzado:** App full-stack con login, e-commerce, sistema de reservas\n\nCuentame que tecnologias aprendiste y te doy un proyecto especifico.`
+  }
+
+  if (checkAnalyze || checkProgress) {
+    if (hasStats) {
+      const s = context!.stats
+      const p = context!.paths
+
+      const progressAnalysis = p.map((path) => {
+        const status = path.progress === 100 ? 'completada' : path.progress >= 50 ? 'a mitad de camino' : path.progress > 0 ? 'recien empezada' : 'sin empezar'
+        return `* **${path.title}**: ${path.progress}% (${status}, ${path.completed}/${path.total} temas)`
+      }).join('\n')
+
+      const recommendation = s.completedTopics === 0
+        ? 'Aun no has completado ningun tema. Mi consejo: empieza hoy con el primer tema de tu primera ruta. No lo dejes para manana.'
+        : s.completedTopics < 5
+        ? 'Llevas pocos temas completados. Lo se, da pereza, pero la constancia es lo unico que funciona. 15 minutos diarios, no mas.'
+        : s.completedTopics < 15
+        ? 'Tienes buena base. Es momento de empezar un proyecto pequeno para consolidar lo aprendido. No esperes a "saber todo".'
+        : 'Tienes solida experiencia. Es hora de proyectos mas ambiciosos o especializarte en algo concreto.'
+
+      return `**Tu progreso actual**\n\nLlevas **${s.totalMinutes} minutos** estudiando, **${s.streak} dias** de racha, y **${s.completedTopics} temas** completados en **${s.totalPaths} rutas**.\n\n${progressAnalysis}\n\n${hasProjects ? `Tienes ${context!.projects.filter((pr) => pr.status === 'in_progress').length} proyectos en progreso y ${context!.projects.filter((pr) => pr.status === 'completed').length} completados.` : 'Aun no has registrado proyectos.'}\n\n**Mi analisis:** ${recommendation}\n\nQue te gustaria hacer ahora?`
+    }
+
+    return `**Analisis de progreso**\n\nPara saber donde estas, responde honestamente:\n\n**Nivel basico:**\n- Puedes explicar los conceptos sin mirar apuntes?\n- Has hecho al menos 5 ejercicios sin ver la solucion?\n\n**Nivel intermedio:**\n- Puedes empezar un archivo en blanco y escribir algo util?\n- Has resuelto errores por tu cuenta?\n\n**Nivel avanzado:**\n- Has completado un proyecto personal?\n- Puedes ensanarle el tema a alguien mas?\n\n**La verdad:** La mayoria de la gente se queda en nivel basico porque solo ve tutoriales. La diferencia esta en hacer proyectos propios.\n\nCuantos temas llevas completados? Asi te doy una recomendacion mas precisa.`
   }
 
   if (checkReadiness) {
-    return `**Evaluacion de preparacion**\n\nNo importa en que tema estes, estas son las senales de que puedes avanzar al siguiente nivel:\n\n**Senales verdes (sigue adelante):**\n- Explicas los conceptos sin dudar\n- Los ejercicios faciles te aburren\n- Cometes errores nuevos (no los mismos de siempre)\n- Sabes lo que NO sabes y puedes buscarlo\n\n**Senales amarillas (practica mas):**\n- Necesitas tutorial abierto para escribir codigo\n- Los errores te paralizan\n- Copias y pegas sin entender del todo\n\n**Senales rojas (vuelve a lo basico):**\n- No puedes explicar un ejemplo simple con tus palabras\n- Saltaste conceptos por ir muy rapido\n- Llevas mas de 2 semanas en el mismo tema sin avanzar\n\n**Ejercicio de autoevaluacion:** Intenta hacer un ejercicio de la categoria anterior sin ayuda. Si puedes, avanza. Si no puedes, repasa.\n\nNecesitas ayuda con algo en concreto?`
+    if (hasStats) {
+      const s = context!.stats
+      const p = context!.paths
+
+      const readiness = s.completedTopics >= 15
+        ? { level: 'listo', msg: 'Tienes base solida. Es hora de un proyecto real.' }
+        : s.completedTopics >= 8
+        ? { level: 'casi', msg: 'Te falta poco. Completa 5-7 temas mas y empieza un proyecto guiado.' }
+        : { level: 'aun no', msg: 'Aun estas construyendo fundamentos. No te saltes pasos.' }
+
+      const pathInfo = p.length > 0 ? `Tu ruta mas avanzada es "${p[0].title}" con ${p[0].progress}%.` : ''
+
+      return `**Estas listo para avanzar?**\n\nSegun tus datos:\n* Temas completados: **${s.completedTopics}**\n* Minutos estudiados: **${s.totalMinutes}**\n* Racha: **${s.streak} dias**\n\n${pathInfo}\n\n**Mi evaluacion:** ${readiness.msg}\n\n**La prueba de fuego:** Intenta hacer esto sin mirar ningun tutorial:\n1. Abre un archivo en blanco\n2. Escribe un programa que haga algo util (aunque sea simple)\n3. Si te trabas, busca en la documentacion, no en YouTube\n\nSi puedes hacer eso, estas listo. Si no, repasa los temas que te costaron.\n\nQuieres que te recomiende un proyecto para tu nivel?`
+    }
+
+    return `**Estas listo para el siguiente nivel?**\n\nSenales de que puedes avanzar:\n\n**Verde (dale):**\n- Explicas conceptos sin dudar\n- Los ejercicios faciles te aburren\n- Comet errores nuevos (no los mismos de siempre)\n\n**Amarillo (practica mas):**\n- Necesitas el tutorial abierto para escribir codigo\n- Los errores te paralizan\n- Copias y pegas sin entender\n\n**Rojo (vuelve a lo basico):**\n- No puedes explicar un ejemplo simple\n- Saltaste conceptos por ir rapido\n- Llevas 2+ semanas en el mismo tema\n\n**La prueba:** Haz un ejercicio del nivel anterior sin ayuda. Si puedes, avanza. Si no, repasa.\n\nEn que color te ves?`
   }
 
   if (checkNext) {
-    return `**Que sigue en tu aprendizaje?**\n\nEl camino tipico de aprendizaje en programacion es:\n\n**Fase 1 - Fundamentos (1-2 meses):**\n* Sintaxis basica: variables, condicionales, bucles\n* Estructuras de datos: arrays/lista, objetos/diccionarios\n* Funciones y scope\n\n**Fase 2 - Herramientas (2-3 meses):**\n* Git y GitHub\n* Terminal y linea de comandos\n* Debugging basico\n\n**Fase 3 - Proyectos guiados (3-6 meses):**\n* 5-10 proyectos pequenos siguiendo tutoriales\n* Cada proyecto debe agregar algo nuevo que no estaba en el tutorial\n\n**Fase 4 - Proyecto propio (6+ meses):**\n* Idea propia, por pequena que sea\n* Publica en GitHub\n* Comparte en comunidades para feedback\n\n**Fase 5 - Especializacion:**\n* Elige un area: frontend, backend, datos, mobile, etc.\n* Aprende el stack especifico de esa area\n\n**Mi consejo:** No te apresures a llegar a Fase 5. La mayoria abandona porque quiere correr antes de caminar. Disfruta cada fase.\n\nEn que fase dirias que estas ahorita?`
+    if (hasPaths) {
+      const p = context!.paths
+      const allDone = p.every((path) => path.progress === 100)
+      const inProgress = p.filter((path) => path.progress < 100)
+
+      if (allDone) {
+        return `Completaste todas tus rutas. Eso es disciplina.\n\nAhora tienes dos caminos:\n\n**1. Profundizar:** Toma una tecnologia que viste y haz un proyecto complejo con ella. Por ejemplo, si aprendiste React, haz una app completa con autenticacion, base de datos y deploy.\n\n**2. Expandirte:** Aprende algo complementario. Si hiciste frontend, prueba backend. Si hiciste Python, prueba JavaScript. Si hiciste diseno, prueba desarrollo.\n\n**Mi recomendacion:** Antes de empezar algo nuevo, haz un proyecto con lo que ya sabes. Si no lo aplicas, lo olvidas.\n\nQue te llama mas: profundizar o expandirte?`
+      }
+
+      const pendingText = inProgress.map((path) => `* "${path.title}" va al ${path.progress}% (${path.completed}/${path.total} temas)`).join('\n')
+
+      return `**Que sigue en tu aprendizaje**\n\n${pendingText}\n\n**Mi consejo directo:** Termina lo que empezaste antes de abrir nuevas rutas. Se que es tentador empezar algo nuevo, pero la magia esta en terminar.\n\n**Si te estancaste en una ruta:**\n- Cambia de tema 2-3 dias y vuelve con mente fresca\n- Busca un recurso diferente (si leias, prueba video; si veias video, prueba practica)\n- Salta el tema que te traba y vuelve despues\n\n**Si ya no te interesa:** No pasa nada. Elimina la ruta y crea una nueva de algo que si te motive.\n\nQuieres que te ayude a desbloquearte en alguna ruta?`
+    }
+
+    return `**Que sigue en tu aprendizaje?**\n\nEl camino tipico en programacion:\n\n1. **Fundamentos** (1-2 meses): sintaxis, estructuras de datos, funciones\n2. **Herramientas** (2-3 meses): Git, terminal, debugging\n3. **Proyectos guiados** (3-6 meses): 5-10 proyectos siguiendo tutoriales\n4. **Proyecto propio** (6+ meses): idea tuya, publica en GitHub\n5. **Especializacion**: frontend, backend, datos, mobile, etc.\n\n**El error mas comun:** Querer correr antes de caminar. La mayoria abandona en la fase 3 porque se frustra.\n\n**Mi consejo:** Disfruta cada fase. No hay prisa. 20 minutos diarios durante 6 meses te convierten en alguien competente.\n\nEn que fase dirias que estas?`
   }
 
   if (checkProject) {
-    return `**Ideas de proyectos por nivel**\n\n**Principiante (1-2 semanas cada uno):**\n* Calculadora con historial de operaciones\n* Generador de contrasenas seguras\n* Lista de tareas (todo list) en terminal\n* Juego de adivinar un numero\n* Conversor de unidades (temperatura, moneda, distancia)\n\n**Intermedio (2-4 semanas):**\n* Blog personal con pagina estatica\n* API REST de una biblioteca (libros, autores, prestamos)\n* Dashboard con datos de clima (consumiendo API gratuita)\n* Clon basico de Twitter (publicar, seguir, timeline)\n\n**Avanzado (1-3 meses):**\n* App full-stack con autenticacion\n* E-commerce con carrito de compras\n* Sistema de gestion de tareas colaborativo\n* Clon de Trello/Notion simplificado\n\n**Regla de oro para proyectos:**\n1. Elige algo que te entusiasme (vas a pasar MUCHAS horas ahi)\n2. Dividelo en tareas de 30 minutos maximo\n3. Termina antes de que sea perfecto (el proyecto perfecto no existe)\n4. Muestralo aunque este incompleto\n\nQue nivel dirias que tienes?`
+    if (hasProjects) {
+      const projs = context!.projects
+      const completed = projs.filter((pr) => pr.status === 'completed')
+      const inProgress = projs.filter((pr) => pr.status === 'in_progress')
+
+      const projText = projs.map((pr) => {
+        const status = pr.status === 'completed' ? 'completado' : pr.status === 'in_progress' ? 'en progreso' : 'borrador'
+        return `* **${pr.name}** (${status}) - ${pr.technologies.join(', ')}`
+      }).join('\n')
+
+      const techStack = [...new Set(projs.flatMap((p) => p.technologies))].slice(0, 5)
+
+      const projectIdeas = techStack.includes('React') || techStack.includes('JavaScript')
+        ? '* App de gestion de tareas con autenticacion y base de datos\n* Dashboard con graficos de datos en tiempo real\n* Clon de Trello simplificado con drag and drop'
+        : techStack.includes('Python')
+        ? '* Analizador de datos con visualizaciones\n* Bot de Telegram que haga algo util\n* API REST con FastAPI y base de datos'
+        : '* Un proyecto que resuelva un problema real que tengas\n* Algo que puedas terminar en 1-2 semanas\n* Que use las tecnologias que ya sabes'
+
+      return `**Tus proyectos**\n\n${projText}\n\n${completed.length > 0 ? `Tienes ${completed.length} proyecto${completed.length > 1 ? 's' : ''} completado${completed.length > 1 ? 's' : ''}. Buen trabajo.` : 'Aun no has completado ningun proyecto.'}\n\n${inProgress.length > 0 ? `Tienes ${inProgress.length} en progreso. Mi consejo: termina uno antes de empezar otro.` : ''}\n\n**Ideas para tu siguiente proyecto:**\n${projectIdeas}\n\n**Regla de oro:** Elige algo que te entusiasme, dividelo en tareas de 30 minutos, y terminalo antes de que sea perfecto.\n\nTe gusta alguna idea o prefieres algo distinto?`
+    }
+
+    return `**Ideas de proyectos por nivel**\n\n**Principiante (1-2 semanas):**\n* Calculadora con historial\n* Generador de contrasenas\n* Todo list en terminal\n* Juego de adivinar numero\n* Conversor de unidades\n\n**Intermedio (2-4 semanas):**\n* Blog personal estatico\n* API REST de biblioteca\n* Dashboard con datos del clima\n* Clon basico de Twitter\n\n**Avanzado (1-3 meses):**\n* App full-stack con autenticacion\n* E-commerce con carrito\n* Sistema de tareas colaborativo\n* Clon de Trello simplificado\n\n**La regla mas importante:** Elige algo que te entusiasme. Si no te motiva, lo vas a dejar.\n\n**Como empezar:**\n1. Elige una idea\n2. Dividela en tareas de 30 minutos\n3. Empieza hoy, no manana\n4. Terminalo antes de que sea perfecto\n\nQue nivel dirias que tienes?`
+  }
+
+  if (checkGoal) {
+    if (hasStats) {
+      const s = context!.stats
+      return `**Para lograr tu objetivo**\n\nLlevas **${s.totalMinutes} minutos** estudiados, **${s.completedTopics} temas** completados en **${s.totalPaths} rutas**.\n\nLa distancia entre donde estas y tu objetivo depende de que tan ambicioso sea:\n\n* **Conseguir trabajo:** Necesitas minimo 3 proyectos completos en tu portafolio y habilidades solidas en un stack especifico.\n* **Aprender algo nuevo:** Con 30 min diarios, en 3 meses tendras base solida.\n* **Un proyecto especifico:** Dividelo en tecnologias y evalua cuales ya dominas y cuales te faltan.\n\n**Mi consejo:** No te compares con otros. Comparate con quien eras hace 3 meses. Si sabes mas, vas bien.\n\nCuentame mas de tu objetivo para darte una guia mas precisa.`
+    }
+
+    return `**Para alcanzar tu objetivo**\n\nEl camino siempre es el mismo:\n\n1. **Define el objetivo en concreto** (no "ser programador", sino "poder crear una web con login y base de datos")\n2. **Identifica las habilidades necesarias** (React + Node + SQL + autenticacion)\n3. **Evalua cuales ya tienes y cuales te faltan**\n4. **Prioriza** lo que te falta por orden de dependencia\n5. **Crea una ruta** con el Generador de rutas\n\n**El error mas comun:** No definir el objetivo con claridad. "Quiero aprender a programar" es muy vago. "Quiero poder crear una API REST con autenticacion" es concreto.\n\nCual es tu objetivo exactamente?`
   }
 
   if (m.includes('python')) {
-    return `**Python - De principiante a practico**\n\nPython es tu mejor primer lenguaje por su sintaxis clara y su versatilidad (web, datos, IA, automatizacion).\n\n**Tu primer programa:**\n\`\`\`python\n# Pide tu nombre y saluda\nnombre = input("Como te llamas? ")\nedad = int(input("Cuantos anos tienes? "))\nanios = 100 - edad\nprint(f"{nombre}, te quedan {anios} anos para llegar a 100!")\n\`\`\`\n\n**Orden de aprendizaje:**\n1. Variables, tipos, input/output\n2. Condicionales (if/elif/else)\n3. Bucles (for, while)\n4. Listas y diccionarios\n5. Funciones\n6. Archivos y excepciones\n\n**Mini-ejercicio para hoy:**\nEscribe un programa que pida 5 numeros, los guarde en una lista, y muestre el promedio. Intentalo antes de buscar la solucion!\n\n**Autores:** Busca a **SoyDalto** (fundamentos), **PildorasInformaticas** (intermedio), **freeCodeCamp** (proyectos)\n\nQuieres que genere una ruta personalizada con el Generador de rutas?`
+    return `**Python - De principiante a practico**\n\nPython es tu mejor primer lenguaje por su sintaxis clara y su versatilidad (web, datos, IA, automatizacion).\n\n**Tu primer programa:**\n\`\`\`python\nnombre = input("Como te llamas? ")\nedad = int(input("Cuantos anos tienes? "))\nanios = 100 - edad\nprint(f"{nombre}, te quedan {anios} anos para llegar a 100!")\n\`\`\`\n\n**Orden de aprendizaje:**\n1. Variables, tipos, input/output\n2. Condicionales (if/elif/else)\n3. Bucles (for, while)\n4. Listas y diccionarios\n5. Funciones\n6. Archivos y excepciones\n\n**Mini-ejercicio para hoy:**\nEscribe un programa que pida 5 numeros, los guarde en una lista, y muestre el promedio. Intentalo antes de buscar la solucion.\n\n**Autores:** Busca a **SoyDalto** (fundamentos), **PildorasInformaticas** (intermedio), **freeCodeCamp** (proyectos)\n\nQuieres que genere una ruta personalizada?`
   }
 
   if (m.includes('javascript') || m.includes('js')) {
-    return `**JavaScript - Domina la web**\n\nJS es el lenguaje de los navegadores y ahora tambien del servidor con Node.js.\n\n**Ejercicio practico - Manipular el DOM:**\n\`\`\`javascript\n// Crea una lista interactiva\nconst boton = document.createElement("button")\nboton.textContent = "Agregar item"\nboton.onclick = () => {\n  const item = document.createElement("li")\n  item.textContent = prompt("Nuevo item:")\n  document.getElementById("lista").appendChild(item)\n}\ndocument.body.appendChild(boton)\n\`\`\`\n\n**Orden recomendado:**\n1. Variables (let, const), tipos, funciones\n2. Arrays y metodos (map, filter, reduce)\n3. DOM y eventos\n4. Fetch y APIs\n5. Async/await\n\n**Mini-ejercicio:**\nCrea un contador en HTML con 3 botones: +1, -1, reset. Conectalo con JS. Cuando llegue a 10, muestra un mensaje.\n\n**Autores:** Busca a **midudev** (JS moderno y React), **SoyDalto** (fundamentos)\n\nNecesitas ayuda con algo en especifico?`
+    return `**JavaScript - Domina la web**\n\nJS es el lenguaje de los navegadores y ahora tambien del servidor con Node.js.\n\n**Ejercicio practico:**\n\`\`\`javascript\nconst boton = document.createElement("button")\nboton.textContent = "Agregar item"\nboton.onclick = () => {\n  const item = document.createElement("li")\n  item.textContent = prompt("Nuevo item:")\n  document.getElementById("lista").appendChild(item)\n}\ndocument.body.appendChild(boton)\n\`\`\`\n\n**Orden recomendado:**\n1. Variables (let, const), tipos, funciones\n2. Arrays y metodos (map, filter, reduce)\n3. DOM y eventos\n4. Fetch y APIs\n5. Async/await\n\n**Mini-ejercicio:**\nCrea un contador en HTML con 3 botones: +1, -1, reset. Conectalo con JS.\n\n**Autores:** Busca a **midudev** (JS moderno y React), **SoyDalto** (fundamentos)\n\nNecesitas ayuda con algo en especifico?`
   }
 
   if (m.includes('react')) {
-    return `**React - Tu primer componente**\n\nReact es una libreria para construir interfaces con componentes reutilizables.\n\n**Mini-app: Lista de tareas**\n\`\`\`tsx\nfunction App() {\n  const [tareas, setTareas] = useState([])\n  const [input, setInput] = useState("")\n\n  const agregar = () => {\n    setTareas([...tareas, { id: Date.now(), texto: input, hecha: false }])\n    setInput("")\n  }\n\n  return (\n    <div>\n      <input value={input} onChange={e => setInput(e.target.value)} />\n      <button onClick={agregar}>Agregar</button>\n      <ul>{tareas.map(t => <li key={t.id}>{t.texto}</li>)}</ul>\n    </div>\n  )\n}\n\`\`\`\n\n**Prerequisitos:** HTML, CSS y JavaScript (arrays, funciones, destructuring). Sin eso, React se vuelve confuso.\n**Orden:** JS basico > JS moderno (ES6+) > React\n\n**Mini-ejercicio:**\nToma el ejemplo de arriba, agregale un checkbox para marcar tareas como hechas, y un boton para borrar las completadas.\n\n**Autor:** Busca a **midudev**\n\nTienes experiencia con HTML/CSS/JS o necesitas empezar desde ahi?`
+    return `**React - Tu primer componente**\n\nReact es una libreria para construir interfaces con componentes reutilizables.\n\n**Mini-app:**\n\`\`\`tsx\nfunction App() {\n  const [tareas, setTareas] = useState([])\n  const [input, setInput] = useState("")\n\n  const agregar = () => {\n    setTareas([...tareas, { id: Date.now(), texto: input, hecha: false }])\n    setInput("")\n  }\n\n  return (\n    <div>\n      <input value={input} onChange={e => setInput(e.target.value)} />\n      <button onClick={agregar}>Agregar</button>\n      <ul>{tareas.map(t => <li key={t.id}>{t.texto}</li>)}</ul>\n    </div>\n  )\n}\n\`\`\`\n\n**Prerequisitos:** HTML, CSS y JavaScript (arrays, funciones, destructuring).\n\n**Mini-ejercicio:**\nAgregale un checkbox para marcar tareas como hechas y un boton para borrar las completadas.\n\n**Autor:** Busca a **midudev**\n\nTienes experiencia con HTML/CSS/JS o necesitas empezar desde ahi?`
   }
 
   if (m.includes('html')) {
-    return `**HTML5 - Estructura semantica**\n\nHTML no es un lenguaje de programacion, es de marcado. Define la estructura de tu pagina.\n\n**Estructura moderna:**\n\`\`\`html\n<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Mi pagina</title>\n</head>\n<body>\n  <header>\n    <nav><a href="/">Inicio</a> <a href="/blog">Blog</a></nav>\n  </header>\n  <main>\n    <article>\n      <h1>Titulo del articulo</h1>\n      <p>Contenido principal aqui.</p>\n    </article>\n    <aside>Barra lateral</aside>\n  </main>\n  <footer>&copy; 2026</footer>\n</body>\n</html>\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una pagina personal con: header con tu nombre, main con 3 secciones (sobre mi, proyectos, contacto), y footer. Usa etiquetas semanticas.\n\n**Autores:** Busca a **SoyDalto** (HTML+CSS), **MDN** (referencia oficial)`
+    return `**HTML5 - Estructura semantica**\n\nHTML define la estructura de tu pagina.\n\n**Estructura moderna:**\n\`\`\`html\n<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <title>Mi pagina</title>\n</head>\n<body>\n  <header>\n    <nav><a href="/">Inicio</a></nav>\n  </header>\n  <main>\n    <article>\n      <h1>Titulo</h1>\n      <p>Contenido.</p>\n    </article>\n  </main>\n  <footer>&copy; 2026</footer>\n</body>\n</html>\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una pagina personal con header, main con 3 secciones, y footer.\n\n**Autores:** Busca a **SoyDalto**, **MDN**`
   }
 
   if (m.includes('css')) {
-    return `**CSS - De float a Grid**\n\nCSS controla la apariencia. El layout moderno se hace con Flexbox y Grid.\n\n**Centrar algo (la pregunta mas comun):**\n\`\`\`css\n.contenedor {\n  display: grid;\n  place-items: center;\n  min-height: 100vh;\n}\n\`\`\`\n\n**Layout responsive con Grid:**\n\`\`\`css\ntarjetas {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: 1rem;\n  padding: 1rem;\n}\n\`\`\`\n\n**Mini-ejercicio:**\nToma una pagina HTML simple y aplicale: un header fijo arriba, main con grid de 3 columnas que se vuelva 1 en movil, colores con variables CSS.\n\n**Autores:** Busca a **midudev** (CSS moderno), **CSS Tricks** (guias completas)`
+    return `**CSS - De float a Grid**\n\nEl layout moderno se hace con Flexbox y Grid.\n\n**Centrar algo:**\n\`\`\`css\n.contenedor {\n  display: grid;\n  place-items: center;\n  min-height: 100vh;\n}\n\`\`\`\n\n**Layout responsive:**\n\`\`\`css\ntarjetas {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: 1rem;\n}\n\`\`\`\n\n**Mini-ejercicio:**\nToma una pagina HTML y aplicale: header fijo, main con grid de 3 columnas que se vuelva 1 en movil.\n\n**Autores:** Busca a **midudev**, **CSS Tricks**`
   }
 
   if (m.includes('hola') || m.includes('buenas') || m.includes('hey')) {
-    return 'Hola! Soy tu mentor de aprendizaje. Puedo ayudarte con programacion y tecnologia. Tambien puedes crear una ruta de aprendizaje personalizada con el Generador de rutas. Que quieres aprender hoy?'
+    const greeting = hasStats
+      ? `Hola de nuevo. Veo que llevas ${context!.stats.completedTopics} temas completados. Que quieres hacer hoy?`
+      : 'Hola! Soy tu mentor de aprendizaje. Puedo ayudarte con programacion, tecnologia, o crear una ruta personalizada. Que quieres aprender?'
+    return greeting
   }
 
   if (m.includes('gracias') || m.includes('thanks')) {
-    return 'De nada! Recuerda: la constancia vence al talento. 15 minutos diarios > 5 horas un solo dia. Si necesitas algo mas, aqui estoy.'
+    return 'De nada. Recuerda: la constancia vence al talento. 15 minutos diarios > 5 horas un solo dia. Aqui estoy cuando me necesites.'
   }
 
   const topicTexts: Record<string, { response: string; author: string }> = {
-    docker: { response: `**Docker - Tu entorno portatil**\n\nDocker empaqueta tu app con todo lo que necesita para funcionar en cualquier maquina.\n\n**Comandos esenciales:**\n\`\`\`bash\n# Descargar y ejecutar Ubuntu interactivo\ndocker run -it ubuntu bash\n\n# Listar contenedores activos\ndocker ps\n\n# Construir desde Dockerfile\ndocker build -t mi-app .\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un Dockerfile para una app de Node.js que: use node:18, copie package.json, ejecute npm install, exponga el puerto 3000.`, author: 'midudev' },
-    sql: { response: `**SQL - Consulta tu base de datos**\n\nSQL te permite preguntarle cosas a una base de datos relacional.\n\n**Las 4 operaciones basicas (CRUD):**\n\`\`\`sql\n-- Crear tabla\nCREATE TABLE usuarios (id INT, nombre TEXT, edad INT);\n\n-- Insertar\nINSERT INTO usuarios VALUES (1, 'Ana', 25);\n\n-- Consultar\nSELECT nombre, edad FROM usuarios WHERE edad > 18;\n\n-- Actualizar\nUPDATE usuarios SET edad = 26 WHERE nombre = 'Ana';\n\n-- Eliminar\nDELETE FROM usuarios WHERE id = 1;\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una tabla "productos" con id, nombre, precio, stock. Inserta 5 productos. Consulta los que cuestan menos de $100.`, author: 'PildorasInformaticas' },
-    node: { response: `**Node.js - JS fuera del navegador**\n\nNode te permite escribir servidores, APIs, y herramientas con JavaScript.\n\n**Servidor HTTP minimo:**\n\`\`\`javascript\nconst http = require('http')\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'Content-Type': 'application/json' })\n  res.end(JSON.stringify({ mensaje: 'Hola mundo' }))\n})\nserver.listen(3000, () => console.log('Servidor en http://localhost:3000'))\n\`\`\`\n\n**Orden de aprendizaje:** Modulos nativos (fs, path, http) > Express > Bases de datos > Autenticacion\n\n**Mini-ejercicio:**\nCrea un servidor con Express que tenga 3 rutas: GET / (html simple), GET /api/usuarios (JSON con array), POST /api/usuarios (recibe JSON y responde "creado").`, author: 'midudev' },
-    git: { response: `**Git - Control de versiones**\n\nGit registra cada cambio de tu codigo para que puedas volver atras, colaborar, y tener respaldo.\n\n**Flujo basico diario:**\n\`\`\`bash\ngit init\ngit add .\ngit commit -m "mensaje descriptivo"\ngit log --oneline\ngit checkout -b nueva-funcionalidad\n# ... trabajas ...\ngit add . && git commit -m "agrega login"\ngit checkout main\ngit merge nueva-funcionalidad\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un repo local, haz 3 commits, crea una rama "experimento", haz 2 commits ahi, vuelve a main y fusea la rama.`, author: 'SoyDalto' },
-    typescript: { response: `**TypeScript - JS con superpoderes**\n\nTS anade tipos a JS para evitar errores antes de ejecutar.\n\n**Diferencia clave:**\n\`\`\`typescript\n// JS - error en ejecucion\nfunction suma(a, b) { return a + b }\nsuma(5, "hola") // "5hola"\n\n// TS - error en compilacion\nfunction suma(a: number, b: number): number {\n  return a + b\n}\nsuma(5, "hola") // Error: string no es number\n\`\`\`\n\n**Mini-ejercicio:**\nToma una funcion JS que maneje un array de usuarios (nombre, edad, email) y pasala a TS con interfaces.`, author: 'midudev' },
-    ciberseguridad: { response: `**Ciberseguridad - Protege tu codigo**\n\n**Triangulo CIA:** Confidencialidad, Integridad, Disponibilidad.\n\n**Practicas esenciales:**\n- Nunca subas claves API ni tokens a GitHub\n- Usa variables de entorno (.env)\n- Valida y sanitiza toda entrada del usuario (SQL injection, XSS)\n- Usa HTTPS en produccion\n- Contrasenas: hash con bcrypt, nunca texto plano\n\n**Autores:** Busca a **HackerSploit**, **S4vitar**`, author: 'HackerSploit' },
-    inteligencia: { response: `**Machine Learning - Conceptos clave**\n\n**Tipos de aprendizaje:**\n- **Supervisado:** datos etiquetados (clasificacion, regresion)\n- **No supervisado:** sin etiquetas (clustering, asociacion)\n- **Reforzado:** prueba y error con recompensas\n\n**Pilas tecnologicas:**\n- Python + scikit-learn para empezar\n- TensorFlow / PyTorch para deep learning\n- Pandas + NumPy para manipulacion de datos\n\n**Autores:** Busca a **DotCSV** (conceptos), **freeCodeCamp** (practico)`, author: 'DotCSV' },
-    datos: { response: `**Analisis de datos con Python**\n\n**Pandas - Operaciones diarias:**\n\`\`\`python\nimport pandas as pd\n\ndf = pd.read_csv("ventas.csv")\ndf.head(10)           # primeras filas\ndf.describe()          # estadisticas\ndf.groupby("ciudad").sum()  # agrupar\ndf[df["monto"] > 100]  # filtrar\n\`\`\`\n\n**Mini-ejercicio:**\nDescarga un CSV de ventas (o crea uno), calcula: total por mes, producto mas vendido, promedio por cliente.`, author: 'freeCodeCamp' },
+    docker: { response: `**Docker - Tu entorno portatil**\n\nDocker empaqueta tu app con todo lo que necesita.\n\n**Comandos esenciales:**\n\`\`\`bash\ndocker run -it ubuntu bash\ndocker ps\ndocker build -t mi-app .\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un Dockerfile para una app de Node.js.`, author: 'midudev' },
+    sql: { response: `**SQL - Consulta tu base de datos**\n\n**Las 4 operaciones basicas:**\n\`\`\`sql\nCREATE TABLE usuarios (id INT, nombre TEXT);\nINSERT INTO usuarios VALUES (1, 'Ana');\nSELECT * FROM usuarios;\nUPDATE usuarios SET nombre = 'Ana Maria';\nDELETE FROM usuarios WHERE id = 1;\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una tabla "productos" y haz consultas.`, author: 'PildorasInformaticas' },
+    node: { response: `**Node.js - JS fuera del navegador**\n\n**Servidor HTTP minimo:**\n\`\`\`javascript\nconst http = require('http')\nconst server = http.createServer((req, res) => {\n  res.end(JSON.stringify({ mensaje: 'Hola' }))\n})\nserver.listen(3000)\n\`\`\`\n\n**Orden:** Modulos nativos > Express > Bases de datos > Auth`, author: 'midudev' },
+    git: { response: `**Git - Control de versiones**\n\n**Flujo basico:**\n\`\`\`bash\ngit init\ngit add .\ngit commit -m "mensaje"\ngit log --oneline\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un repo, haz 3 commits, crea una rama, fusea.`, author: 'SoyDalto' },
+    typescript: { response: `**TypeScript - JS con tipos**\n\n\`\`\`typescript\nfunction suma(a: number, b: number): number {\n  return a + b\n}\n\`\`\`\n\n**Mini-ejercicio:**\nPasa una funcion JS a TS con interfaces.`, author: 'midudev' },
+    ciberseguridad: { response: `**Ciberseguridad - Protege tu codigo**\n\n**Practicas esenciales:**\n- Nunca subas claves API a GitHub\n- Usa variables de entorno\n- Valida toda entrada del usuario\n- Usa HTTPS en produccion\n\n**Autores:** Busca a **HackerSploit**, **S4vitar**`, author: 'HackerSploit' },
+    inteligencia: { response: `**Machine Learning - Conceptos clave**\n\n**Tipos:**\n- Supervisado: datos etiquetados\n- No supervisado: sin etiquetas\n- Reforzado: prueba y error\n\n**Pilas:** Python + scikit-learn, TensorFlow, Pandas\n\n**Autores:** Busca a **DotCSV**, **freeCodeCamp**`, author: 'DotCSV' },
+    datos: { response: `**Analisis de datos con Python**\n\n\`\`\`python\nimport pandas as pd\ndf = pd.read_csv("ventas.csv")\ndf.head(10)\ndf.describe()\n\`\`\`\n\n**Mini-ejercicio:**\nDescarga un CSV y calcula estadisticas.`, author: 'freeCodeCamp' },
   }
 
   for (const [key, val] of Object.entries(topicTexts)) {
-    if (m.includes(key)) return `${val.response}\n\n**Autor:** Busca a **${val.author}**\n\nQuieres que genere una ruta de aprendizaje personalizada con el Generador de rutas?`
+    if (m.includes(key)) return `${val.response}\n\n**Autor:** Busca a **${val.author}**\n\nQuieres que genere una ruta personalizada?`
   }
 
   const detected = extractTopic(msg)
   const topicLabel = detected || msg.trim().split(' ').filter(w => w.length > 3).slice(-3).join(' ') || 'programacion'
 
-  return `**${topicLabel} - Ruta de aprendizaje recomendada**\n\n**Paso 1 - Fundamentos (1-2 semanas):**\n* Busca en YouTube "Curso de ${topicLabel} para principiantes"\n* Identifica los conceptos clave: que es, para que sirve, las herramientas necesarias\n* Instala y configura tu entorno de trabajo\n* Completa 3 ejercicios basicos en tu primera semana\n\n**Paso 2 - Practica dirigida (2-4 semanas):**\n* Dedica 20 minutos diarios. Mejor poco cada dia que mucho un solo dia\n* Sigue tutoriales paso a paso y REPITE cada ejercicio sin mirar la solucion\n* Crea un documento con errores comunes y como solucionarlos\n* Explica cada concepto en voz alta como si se lo ensenaras a alguien\n\n**Paso 3 - Proyecto personal (4-6 semanas):**\n* Proponte un proyecto pequeno pero realista sobre ${topicLabel}\n* Dividelo en tareas de 30 minutos cada una\n* Usa Git desde el dia 1 (aunque estes solo)\n* Comparte tu progreso en comunidades del tema\n\n**Paso 4 - Profundizacion:**\n* Compara ${topicLabel} con tecnologias similares\n* Lee documentacion oficial, no solo tutoriales\n* Ensenale a alguien lo que aprendiste\n\n**Regla de oro:** La consistencia vence al talento. 20 minutos diarios durante 6 meses te convierten en alguien competente.\n\nQuieres que genere una ruta personalizada con el Generador de rutas?`
+  return `**${topicLabel}**\n\n**Plan de aprendizaje:**\n\n1. **Fundamentos** (1-2 semanas): Busca "Curso de ${topicLabel} para principiantes" en YouTube\n2. **Practica** (2-4 semanas): 20 minutos diarios, repite ejercicios sin ver solucion\n3. **Proyecto** (4-6 semanas): Algo pequeno pero realista\n4. **Profundizacion**: Lee documentacion oficial, ensena a otros\n\n**Regla de oro:** La consistencia vence al talento. 20 minutos diarios durante 6 meses.\n\nQuieres que genere una ruta personalizada?`
 }
