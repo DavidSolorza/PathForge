@@ -13,6 +13,9 @@ export interface ITopic {
   completed: boolean
   completedAt?: Date
   resources: IResource[]
+  notes?: string
+  reviewDueAt?: Date
+  reviewInterval?: number
 }
 
 export interface IStage {
@@ -52,6 +55,9 @@ const TopicSchema = new Schema<ITopic>(
     completed: { type: Boolean, default: false },
     completedAt: { type: Date },
     resources: { type: [ResourceSchema], default: [] },
+    notes: { type: String },
+    reviewDueAt: { type: Date },
+    reviewInterval: { type: Number },
   },
   { _id: true },
 )

@@ -6,6 +6,7 @@ export interface IStats extends Document {
   completedTopics: number
   totalProgress: number
   streak: number
+  longestStreak: number
   favoriteCategory: string
   activeDays: number
   updatedAt: Date
@@ -18,6 +19,7 @@ const StatsSchema = new Schema<IStats>(
     completedTopics: { type: Number, default: 0 },
     totalProgress: { type: Number, default: 0 },
     streak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
     favoriteCategory: { type: String, default: '' },
     activeDays: { type: Number, default: 0 },
   },

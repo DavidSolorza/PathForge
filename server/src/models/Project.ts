@@ -6,8 +6,10 @@ export interface IProject extends Document {
   description: string
   technologies: string[]
   status: 'draft' | 'in_progress' | 'completed' | 'archived'
+  progress: number
   repoUrl?: string
   demoUrl?: string
+  notes?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -19,8 +21,10 @@ const ProjectSchema = new Schema<IProject>(
     description: { type: String, required: true },
     technologies: { type: [String], default: [] },
     status: { type: String, enum: ['draft', 'in_progress', 'completed', 'archived'], default: 'draft' },
+    progress: { type: Number, default: 0 },
     repoUrl: { type: String },
     demoUrl: { type: String },
+    notes: { type: String },
   },
   { timestamps: true },
 )
