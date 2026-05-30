@@ -32,6 +32,6 @@ const ChatHistorySchema = new Schema<IChatHistory>(
   { timestamps: true },
 )
 
-ChatHistorySchema.index({ userId: 1, mode: 1 })
+ChatHistorySchema.index({ userId: 1, mode: 1 }, { unique: true })
 
 export const ChatHistoryModel = mongoose.model<IChatHistory>('ChatHistory', ChatHistorySchema)

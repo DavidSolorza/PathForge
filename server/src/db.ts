@@ -1,10 +1,12 @@
 import mongoose from 'mongoose'
 import { config } from './config'
+import { initDb } from './initDb'
 
 export async function connectDB(): Promise<void> {
   try {
     await mongoose.connect(config.mongoUri)
-    console.log('[DB] Conectado a MongoDB')
+    console.log('[DB] Conectado a MongoDB Atlas (pathforge)')
+    await initDb()
   } catch (error) {
     console.error('[DB] Error de conexion:', error)
     process.exit(1)
