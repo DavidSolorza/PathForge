@@ -448,13 +448,59 @@ function detectCategory(goal: string): { category: Category; difficulty: 'beginn
 }
 
 function generateTitle(goal: string): string {
+  const techKeywords = [
+    'python', 'javascript', 'typescript', 'java', 'c#', 'c++', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin',
+    'react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'gatsby',
+    'node', 'express', 'fastapi', 'django', 'flask', 'spring', 'rails', 'laravel',
+    'html', 'css', 'sass', 'tailwind', 'bootstrap',
+    'sql', 'mysql', 'postgresql', 'mongodb', 'redis', 'firebase', 'supabase',
+    'docker', 'kubernetes', 'aws', 'azure', 'gcp', 'devops', 'ci/cd',
+    'git', 'github', 'gitlab',
+    'testing', 'jest', 'vitest', 'cypress', 'playwright',
+    'graphql', 'rest', 'api', 'websocket',
+    'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'ia', 'inteligencia artificial',
+    'ciberseguridad', 'hacking', 'pentesting',
+    'algoritmos', 'estructuras de datos', 'patrones de diseno',
+    'frontend', 'backend', 'fullstack', 'mobile', 'web',
+    'linux', 'bash', 'terminal', 'shell',
+    'vim', 'vscode', 'neovim',
+    'webpack', 'vite', 'rollup',
+    'redux', 'zustand', 'mobx',
+    'prisma', 'sequelize', 'mongoose', 'typeorm',
+    'nginx', 'apache', 'vercel', 'netlify', 'heroku',
+    'electron', 'react native', 'flutter',
+    'blockchain', 'solidity', 'web3',
+    'data science', 'pandas', 'numpy', 'matplotlib',
+    'elasticsearch', 'rabbitmq', 'kafka',
+    'microservicios', 'arquitectura', 'diseno de sistemas',
+    'no sql', 'nosql'
+  ]
+
+  const lowerGoal = goal.toLowerCase()
+
+  for (const keyword of techKeywords) {
+    if (lowerGoal.includes(keyword)) {
+      const words = keyword.split(' ')
+      if (words.length === 1) {
+        return keyword.charAt(0).toUpperCase() + keyword.slice(1)
+      }
+      return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    }
+  }
+
   const clean = goal
-    .replace(/^(quiero\s+)?aprender\s+|^(quiero\s+)?aprende\s+|^(quiero\s+)?dominando\s+|^quiero\s+|^aprender\s+|^aprende\s+|^dominando\s+/gi, '')
+    .replace(/^(quiero\s+)?aprender\s+|^(quiero\s+)?aprende\s+|^(quiero\s+)?dominar\s+|^quiero\s+|^aprender\s+|^aprende\s+|^dominar\s+/gi, '')
     .replace(/^para\s+|^como\s+|^desde\s+cero\s*/gi, '')
     .replace(/desde cero$/gi, '')
+    .replace(/programacion|programación|desarrollo|development/gi, '')
     .trim()
-  const topic = clean || goal.trim()
-  return topic.charAt(0).toUpperCase() + topic.slice(1)
+
+  if (clean.length > 0 && clean.length < 30) {
+    return clean.charAt(0).toUpperCase() + clean.slice(1)
+  }
+
+  const firstWords = clean.split(' ').slice(0, 3).join(' ')
+  return firstWords.charAt(0).toUpperCase() + firstWords.slice(1)
 }
 
 const SYSTEM_PROMPT = `Eres un mentor personal de aprendizaje en PathForge AI. Hablas espanol de forma natural, como un amigo experto que da consejos directos y utiles. No eres un libro de texto ni un bot generico. Eres cercano, directo y te importa el progreso real del usuario.

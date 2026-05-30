@@ -31,7 +31,7 @@ describe('AiService', () => {
 
     it('extracts clean topic from non-standard input', async () => {
       const path = await AiService.generatePath('typescript avanzado')
-      expect(path.title).toBe('Typescript avanzado')
+      expect(path.title).toBe('Typescript')
     })
   })
 
