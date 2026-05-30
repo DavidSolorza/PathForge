@@ -12,10 +12,21 @@ export interface User {
 export interface Topic {
   id: string
   name: string
+  content?: string
   difficulty: 'easy' | 'medium' | 'hard'
   completed: boolean
   completedAt?: string
   resources: Resource[]
+  notes?: string
+  reviewDueAt?: string
+  reviewInterval?: number
+}
+
+export interface PathPreferences {
+  weeklyHours: '<3' | '3-5' | '5-10' | '10+'
+  learningMethod: 'lectura' | 'video' | 'practica' | 'mixto'
+  currentLevel: 'beginner' | 'intermediate' | 'advanced'
+  projectPreference: 'cortos' | 'medianos' | 'largos'
 }
 
 export interface Stage {
@@ -81,6 +92,33 @@ export interface ChatMessage {
   timestamp: string
 }
 
+export interface StudySession {
+  date: string
+  duration: number
+  topicsStudied: string[]
+}
+
+export interface LearningGoal {
+  id: string
+  type: 'weekly_topics' | 'weekly_sessions' | 'custom'
+  target: number
+  current: number
+  weekStart: string
+  label: string
+}
+
+export interface CuratedResource {
+  id: string
+  title: string
+  url: string
+  description: string
+  type: 'course' | 'book' | 'documentation' | 'practice' | 'video' | 'article'
+  category: string
+  free: boolean
+  author?: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+}
+
 export interface UserStats {
   totalPaths: number
   completedTopics: number
@@ -88,6 +126,7 @@ export interface UserStats {
   streak: number
   favoriteCategory: string
   activeDays: number
+  longestStreak: number
 }
 
 export interface RecentActivity {

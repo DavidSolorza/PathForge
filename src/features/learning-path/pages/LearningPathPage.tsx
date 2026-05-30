@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -12,10 +12,12 @@ import {
   Trash2,
   Plus,
   Bot,
+  StickyNote,
 } from 'lucide-react'
 import { usePathStore } from '@core/store'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
+import { ReviewService } from '@features/learning-path/services/ReviewService'
 import { AiService } from '@features/recommendations/services/AiService'
 import { CATEGORIES } from '@shared/types'
 import type { LearningPath, Topic } from '@shared/types'
@@ -39,6 +41,32 @@ function TopicItem({
   onToggle: (pathId: string, stageId: string, topicId: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [notes, setNotes] = useState(topic.notes || '')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const realResources = topic.resources.filter((r) => r.url && r.url !== '#')
+
+  const expandedByContent = topic.content || realResources.length > 0 || topic.completed
+
+  const saveNotes = async (value: string) => {
+    setSavingNotes(true)
+    const path = await PathStorageService.getById(pathId)
+    if (!path) return
+    for (const stage of path.stages) {
+      if (stage.id !== stageId) continue
+      const t = stage.topics.find((t) => t.id === topic.id)
+      if (t) t.notes = value
+      break
+    }
+    await PathStorageService.update(pathId, path)
+    setSavingNotes(false)
+  }
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => saveNotes(value), 800)
+  }
 
   return (
     <div className={cn('rounded-lg border transition-all', topic.completed ? 'border-green-200 bg-green-50/50' : 'border-neutral-200 bg-white')}>
@@ -59,10 +87,11 @@ function TopicItem({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {topic.notes && <StickyNote className="h-3.5 w-3.5 text-amber-400" />}
           <Badge variant={topic.difficulty === 'easy' ? 'default' : topic.difficulty === 'medium' ? 'warning' : 'primary'} size="sm">
             {topic.difficulty === 'easy' ? 'Facil' : topic.difficulty === 'medium' ? 'Media' : 'Dificil'}
           </Badge>
-          {topic.resources.length > 0 && (
+          {expandedByContent && (
             <button
               onClick={() => setExpanded(!expanded)}
               className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
@@ -72,24 +101,49 @@ function TopicItem({
           )}
         </div>
       </div>
-      {expanded && topic.resources.length > 0 && (
-        <div className="border-t border-neutral-100 px-4 py-3 space-y-1.5">
-          <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Recursos</p>
-          {topic.resources.map((r) => (
-            <a
-              key={r.id}
-              href={r.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 transition-colors no-underline"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              <span>{r.title}</span>
-              <Badge variant="default" size="sm">
-                {r.type === 'documentation' ? 'Doc' : r.type === 'video' ? 'Video' : 'Articulo'}
-              </Badge>
-            </a>
-          ))}
+      {expanded && (
+        <div className="border-t border-neutral-100 px-4 py-3 space-y-3">
+          {topic.content && (
+            <div>
+              <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Contenido</p>
+              <div className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+            </div>
+          )}
+          {realResources.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1.5">Documentacion</p>
+              <div className="space-y-1.5">
+                {realResources.map((r) => (
+                  <a
+                    key={r.id}
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 transition-colors no-underline"
+                  >
+                    <BookOpen className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>{r.title}</span>
+                    <Badge variant="default" size="sm">
+                      {r.type === 'documentation' ? 'Doc' : r.type === 'video' ? 'Video' : 'Articulo'}
+                    </Badge>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Mis apuntes</p>
+              {savingNotes && <span className="text-[10px] text-neutral-400">Guardando...</span>}
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => handleNotesChange(e.target.value)}
+              placeholder="Tus apuntes, resumen o preguntas sobre este tema..."
+              rows={3}
+              className="w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-y transition-all"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -104,32 +158,41 @@ export function LearningPathPage() {
   const addToast = useToastStore((s) => s.addToast)
 
   useEffect(() => {
-    const loaded = PathStorageService.getAll()
-    if (loaded.length > 0 && !activePath) {
-      setActivePath(loaded[0])
-    }
-    setPaths(loaded)
+    let cancelled = false
+    ;(async () => {
+      try {
+        const loaded = await PathStorageService.getAll()
+        if (cancelled) return
+        if (loaded.length > 0 && !activePath) {
+          setActivePath(loaded[0])
+        }
+        setPaths(loaded)
+      } catch (err) {
+        console.error('LearningPath init error:', err)
+      }
+    })()
+    return () => { cancelled = true }
   }, [])
 
-  const handleToggle = (pathId: string, stageId: string, topicId: string) => {
-    const path = PathStorageService.getById(pathId)
+  const handleToggle = async (pathId: string, stageId: string, topicId: string) => {
+    const path = await PathStorageService.getById(pathId)
     if (!path) return
     const stage = path.stages.find((s) => s.id === stageId)
     if (!stage) return
     const topic = stage.topics.find((t) => t.id === topicId)
     if (!topic) return
     const newCompleted = !topic.completed
-    const updated = PathStorageService.updateTopic(pathId, stageId, topicId, newCompleted)
+    const updated = await PathStorageService.updateTopic(pathId, stageId, topicId, newCompleted)
     if (updated) {
-      setPaths(PathStorageService.getAll())
+      setPaths(await PathStorageService.getAll())
       setActivePath(updated)
-      UserStorageService.updateStats((prev) => ({
+      await UserStorageService.updateStats((prev) => ({
         ...prev,
         completedTopics: prev.completedTopics + (newCompleted ? 1 : -1),
         totalProgress: updated.progress,
       }))
       if (newCompleted) {
-        UserStorageService.addActivity({
+        await UserStorageService.addActivity({
           id: `act_${Date.now()}`,
           type: 'topic_completed',
           title: `Completaste: ${topic.name}`,
@@ -140,9 +203,9 @@ export function LearningPathPage() {
     }
   }
 
-  const handleDelete = (pathId: string) => {
-    PathStorageService.remove(pathId)
-    const remaining = PathStorageService.getAll()
+  const handleDelete = async (pathId: string) => {
+    await PathStorageService.remove(pathId)
+    const remaining = await PathStorageService.getAll()
     setPaths(remaining)
     if (activePath?.id === pathId) {
       setActivePath(remaining.length > 0 ? remaining[0] : null)

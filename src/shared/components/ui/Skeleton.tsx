@@ -9,13 +9,15 @@ export function Skeleton({ className, variant = 'text' }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'animate-pulse bg-neutral-200/70',
+        'animate-pulse bg-neutral-200/70 relative overflow-hidden',
         variant === 'circular' && 'rounded-full',
         variant === 'text' && 'h-4 rounded-md',
         variant === 'rectangular' && 'rounded-lg',
         className,
       )}
-    />
+    >
+      <div className="absolute inset-0 animate-shimmer" />
+    </div>
   )
 }
 

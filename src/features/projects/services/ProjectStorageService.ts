@@ -1,19 +1,26 @@
-import { LocalStorageService } from '@shared/services/LocalStorageService'
+import type { DbAdapter } from '@shared/services/DbAdapter'
+import { LocalStorageAdapter } from '@shared/services/LocalStorageAdapter'
 import type { Project } from '@shared/types'
 
 const PROJECTS_KEY = 'projects'
+let _adapter: DbAdapter = LocalStorageAdapter
+
+export function setProjectAdapter(adapter: DbAdapter): void {
+  _adapter = adapter
+}
 
 export const ProjectStorageService = {
-  getAll(): Project[] {
-    return LocalStorageService.get<Project[]>(PROJECTS_KEY) || []
+  async getAll(): Promise<Project[]> {
+    return (await _adapter.get<Project[]>(PROJECTS_KEY)) || []
   },
 
-  getById(id: string): Project | undefined {
-    return this.getAll().find((p) => p.id === id)
+  async getById(id: string): Promise<Project | undefined> {
+    const all = await this.getAll()
+    return all.find((p) => p.id === id)
   },
 
-  save(project: Project): void {
-    LocalStorageService.update<Project[]>(PROJECTS_KEY, (prev) => {
+  async save(project: Project): Promise<void> {
+    await _adapter.update<Project[]>(PROJECTS_KEY, (prev) => {
       const list = prev || []
       const idx = list.findIndex((p) => p.id === project.id)
       if (idx >= 0) list[idx] = project
@@ -22,26 +29,26 @@ export const ProjectStorageService = {
     })
   },
 
-  create(input: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Project {
+  async create(input: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<Project> {
     const project: Project = {
       ...input,
       id: 'proj_' + Date.now(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    this.save(project)
+    await this.save(project)
     return project
   },
 
-  update(id: string, updates: Partial<Project>): Project | undefined {
-    const project = this.getById(id)
+  async update(id: string, updates: Partial<Project>): Promise<Project | undefined> {
+    const project = await this.getById(id)
     if (!project) return undefined
     Object.assign(project, updates, { updatedAt: new Date().toISOString() })
-    this.save(project)
+    await this.save(project)
     return project
   },
 
-  remove(id: string): void {
-    LocalStorageService.update<Project[]>(PROJECTS_KEY, (prev) => (prev || []).filter((p) => p.id !== id))
+  async remove(id: string): Promise<void> {
+    await _adapter.update<Project[]>(PROJECTS_KEY, (prev) => (prev || []).filter((p) => p.id !== id))
   },
 }

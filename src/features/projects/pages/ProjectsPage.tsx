@@ -88,15 +88,17 @@ export function ProjectsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   useEffect(() => {
-    try {
-      setLoading(true)
-      setError(null)
-      setProjects(ProjectStorageService.getAll())
-    } catch {
-      setError('Error al cargar proyectos')
-    } finally {
-      setLoading(false)
-    }
+    ;(async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        setProjects(await ProjectStorageService.getAll())
+      } catch {
+        setError('Error al cargar proyectos')
+      } finally {
+        setLoading(false)
+      }
+    })()
   }, [])
 
   const handleCreate = () => {
@@ -109,10 +111,10 @@ export function ProjectsPage() {
     setModalOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (deleteConfirm === id) {
-      ProjectStorageService.remove(id)
-      setProjects(ProjectStorageService.getAll())
+      await ProjectStorageService.remove(id)
+      setProjects(await ProjectStorageService.getAll())
       setDeleteConfirm(null)
       addToast('success', 'Proyecto eliminado')
     } else {

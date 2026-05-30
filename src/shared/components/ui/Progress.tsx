@@ -27,7 +27,7 @@ export function Progress({
     <div className="flex items-center gap-2">
       <div
         className={cn(
-          'flex-1 rounded-full bg-neutral-100 overflow-hidden',
+          'flex-1 rounded-full bg-neutral-100 overflow-hidden ',
           sizes[size],
           className,
         )}
@@ -41,7 +41,7 @@ export function Progress({
         />
       </div>
       {showLabel && (
-        <span className="text-xs font-medium text-neutral-500 min-w-[3ch] tabular-nums">
+        <span className="text-xs font-medium text-neutral-500 min-w-[3ch] tabular-nums ">
           {Math.round(clampedValue)}%
         </span>
       )}

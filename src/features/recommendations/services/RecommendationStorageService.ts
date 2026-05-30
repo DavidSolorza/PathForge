@@ -1,41 +1,54 @@
-import { LocalStorageService } from '@shared/services/LocalStorageService'
+import type { DbAdapter } from '@shared/services/DbAdapter'
+import { LocalStorageAdapter } from '@shared/services/LocalStorageAdapter'
 import type { Recommendation, ChatMessage } from '@shared/types'
 
 const RECS_KEY = 'recommendations'
 const CHAT_KEY = 'chat_history'
-
 const GEN_KEY = 'generator_history'
+let _adapter: DbAdapter = LocalStorageAdapter
+
+export function setRecommendationAdapter(adapter: DbAdapter): void {
+  _adapter = adapter
+}
 
 export const RecommendationStorageService = {
-  getAll(): Recommendation[] {
-    return LocalStorageService.get<Recommendation[]>(RECS_KEY) || []
+  async getAll(): Promise<Recommendation[]> {
+    return (await _adapter.get<Recommendation[]>(RECS_KEY)) || []
   },
 
-  save(recs: Recommendation[]): void {
-    LocalStorageService.set(RECS_KEY, recs)
+  async save(recs: Recommendation[]): Promise<void> {
+    await _adapter.set(RECS_KEY, recs)
   },
 
-  getChatHistory(): ChatMessage[] {
-    return LocalStorageService.get<ChatMessage[]>(CHAT_KEY) || []
+  async getChatHistory(): Promise<ChatMessage[]> {
+    return (await _adapter.get<ChatMessage[]>(CHAT_KEY)) || []
   },
 
-  addChatMessage(msg: ChatMessage): void {
-    LocalStorageService.update<ChatMessage[]>(CHAT_KEY, (prev) => [...(prev || []), msg].slice(-50))
+  async addChatMessage(msg: ChatMessage): Promise<void> {
+    await _adapter.update<ChatMessage[]>(CHAT_KEY, (prev) => [...(prev || []), msg].slice(-50))
   },
 
-  clearChat(): void {
-    LocalStorageService.remove(CHAT_KEY)
+  async setChatHistory(messages: ChatMessage[]): Promise<void> {
+    await _adapter.set(CHAT_KEY, messages)
   },
 
-  getGeneratorHistory(): ChatMessage[] {
-    return LocalStorageService.get<ChatMessage[]>(GEN_KEY) || []
+  async clearChat(): Promise<void> {
+    await _adapter.delete(CHAT_KEY)
   },
 
-  addGeneratorMessage(msg: ChatMessage): void {
-    LocalStorageService.update<ChatMessage[]>(GEN_KEY, (prev) => [...(prev || []), msg].slice(-50))
+  async getGeneratorHistory(): Promise<ChatMessage[]> {
+    return (await _adapter.get<ChatMessage[]>(GEN_KEY)) || []
   },
 
-  clearGenerator(): void {
-    LocalStorageService.remove(GEN_KEY)
+  async addGeneratorMessage(msg: ChatMessage): Promise<void> {
+    await _adapter.update<ChatMessage[]>(GEN_KEY, (prev) => [...(prev || []), msg].slice(-50))
+  },
+
+  async setGeneratorHistory(messages: ChatMessage[]): Promise<void> {
+    await _adapter.set(GEN_KEY, messages)
+  },
+
+  async clearGenerator(): Promise<void> {
+    await _adapter.delete(GEN_KEY)
   },
 }

@@ -42,8 +42,8 @@ describe('AuthService', () => {
   })
 
   describe('seedDemoUser', () => {
-    it('seeds demo user', () => {
-      const user = AuthService.seedDemoUser()
+    it('seeds demo user', async () => {
+      const user = await AuthService.seedDemoUser()
       expect(user.email).toBe('demo@pathforge.ai')
       expect(user.name).toBe('Usuario Demo')
     })

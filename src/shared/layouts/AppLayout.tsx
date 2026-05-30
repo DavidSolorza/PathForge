@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -11,8 +11,7 @@ import {
   Menu,
   X,
   ChevronLeft,
-  Sun,
-  Moon,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@shared/lib/utils'
 import { config } from '@core/config'
@@ -24,6 +23,7 @@ import { Avatar } from '@shared/components/ui/Avatar'
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Mi Ruta', path: '/learning-path', icon: Map },
+  { label: 'Recursos', path: '/resources', icon: BookOpen },
   { label: 'Habilidades', path: '/skills', icon: Zap },
   { label: 'Proyectos', path: '/projects', icon: FolderGit2 },
   { label: 'Asistente IA', path: '/ai-assistant', icon: Bot },
@@ -31,17 +31,33 @@ const navItems = [
 ]
 
 export function AppLayout() {
-  const { sidebarOpen, toggleSidebar, theme, setTheme } = useUIStore()
+  const { sidebarOpen, toggleSidebar } = useUIStore()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [navigating, setNavigating] = useState(false)
+  const prevPath = useRef('')
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const { toasts, dismissToast } = useToastStore()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (prevPath.current && prevPath.current !== location.pathname) {
+      setNavigating(true)
+      const timer = setTimeout(() => setNavigating(false), 600)
+      return () => clearTimeout(timer)
+    }
+    prevPath.current = location.pathname
+  }, [location.pathname])
 
   return (
     <div className="flex h-svh bg-neutral-50 text-neutral-900">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <AnimatePresence mode="wait">
+      <div className={cn('fixed top-0 left-0 right-0 z-[60] h-0.5 transition-opacity duration-200', navigating ? 'opacity-100' : 'opacity-0')}>
+        <div className="h-full w-full bg-primary-500 animate-nav-bar" />
+      </div>
+
+      <AnimatePresence>
         {mobileOpen && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -98,18 +114,6 @@ export function AppLayout() {
         </nav>
 
         <div className="border-t border-neutral-100 p-3 space-y-2">
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all no-underline',
-              !sidebarOpen && 'justify-center px-2',
-              'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
-            )}
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            {sidebarOpen && <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>}
-          </button>
-
           {sidebarOpen ? (
             <div className="flex items-center gap-3 rounded-lg px-3 py-2">
               <Avatar size="sm" src={user?.avatar} />
@@ -118,11 +122,7 @@ export function AppLayout() {
                 <p className="text-xs text-neutral-400 truncate">{user?.email || ''}</p>
               </div>
             </div>
-          ) : (
-            <div className="flex justify-center">
-              <Avatar size="sm" src={user?.avatar} />
-            </div>
-          )}
+          ) : null}
         </div>
       </aside>
 
@@ -138,7 +138,14 @@ export function AppLayout() {
         </header>
         <main className="flex-1 overflow-auto">
           <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-            <Outlet />
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <Outlet />
+            </motion.div>
           </div>
         </main>
       </div>

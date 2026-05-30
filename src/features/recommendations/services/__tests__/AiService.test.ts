@@ -11,7 +11,7 @@ describe('AiService', () => {
   describe('generatePath', () => {
     it('creates a path for Python', async () => {
       const path = await AiService.generatePath('aprender python')
-      expect(path.title).toBe('Aprendiendo python')
+      expect(path.title).toBe('Python')
       expect(path.goal).toBe('aprender python')
       expect(path.category).toBe('tecnologia')
       expect(path.stages.length).toBeGreaterThan(0)
@@ -20,18 +20,18 @@ describe('AiService', () => {
 
     it('creates a path for JavaScript', async () => {
       const path = await AiService.generatePath('aprender javascript')
-      expect(path.title).toContain('Aprendiendo')
+      expect(path.title).toBe('Javascript')
       expect(path.category).toBe('tecnologia')
     })
 
     it('generates dynamic title based on input', async () => {
       const path = await AiService.generatePath('quiero aprender react')
-      expect(path.title).toBe('Aprendiendo react')
+      expect(path.title).toBe('React')
     })
 
-    it('uses "Dominando" for non-standard input', async () => {
+    it('extracts clean topic from non-standard input', async () => {
       const path = await AiService.generatePath('typescript avanzado')
-      expect(path.title).toBe('Dominando typescript avanzado')
+      expect(path.title).toBe('Typescript avanzado')
     })
   })
 
@@ -48,7 +48,7 @@ describe('AiService', () => {
       const msg = await AiService.chat('explicame python')
       expect(msg.role).toBe('assistant')
       expect(msg.content).toContain('Python')
-      expect(msg.id).toMatch(/^chat_/)
+      expect(msg.id).toMatch(/^msg_/)
     })
 
     it('greets on hello', async () => {

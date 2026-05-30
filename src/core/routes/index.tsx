@@ -55,6 +55,12 @@ const ProfilePage = lazy(() =>
   })),
 )
 
+const ResourcesHubPage = lazy(() =>
+  import('@features/resources/pages/ResourcesHubPage').then((m) => ({
+    default: m.ResourcesHubPage,
+  })),
+)
+
 function SuspenseWrapper({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={<LoadingState message="Cargando página..." />}>
@@ -136,6 +142,14 @@ export function AppRouter() {
             element={
               <SuspenseWrapper>
                 <ProfilePage />
+              </SuspenseWrapper>
+            }
+          />
+          <Route
+            path="/resources"
+            element={
+              <SuspenseWrapper>
+                <ResourcesHubPage />
               </SuspenseWrapper>
             }
           />

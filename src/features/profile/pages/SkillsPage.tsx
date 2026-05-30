@@ -17,8 +17,10 @@ export function SkillsPage() {
   const [showNewPath, setShowNewPath] = useState(false)
 
   useEffect(() => {
-    setPaths(PathStorageService.getAll())
-    setStats(UserStorageService.getStats())
+    ;(async () => {
+      setPaths(await PathStorageService.getAll())
+      setStats(await UserStorageService.getStats())
+    })()
   }, [])
 
   const categoryCount: Record<string, number> = {}

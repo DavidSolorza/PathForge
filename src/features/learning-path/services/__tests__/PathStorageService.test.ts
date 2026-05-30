@@ -46,47 +46,47 @@ describe('PathStorageService', () => {
   })
 
   describe('getAll', () => {
-    it('returns empty array when no paths', () => {
-      expect(PathStorageService.getAll()).toEqual([])
+    it('returns empty array when no paths', async () => {
+      expect(await PathStorageService.getAll()).toEqual([])
     })
 
-    it('returns saved paths', () => {
+    it('returns saved paths', async () => {
       const path = makePath()
-      PathStorageService.save(path)
-      expect(PathStorageService.getAll()).toHaveLength(1)
-      expect(PathStorageService.getAll()[0].id).toBe('path_test')
+      await PathStorageService.save(path)
+      expect(await PathStorageService.getAll()).toHaveLength(1)
+      expect((await PathStorageService.getAll())[0].id).toBe('path_test')
     })
   })
 
   describe('getById', () => {
-    it('returns undefined for missing path', () => {
-      expect(PathStorageService.getById('ghost')).toBeUndefined()
+    it('returns undefined for missing path', async () => {
+      expect(await PathStorageService.getById('ghost')).toBeUndefined()
     })
 
-    it('finds a saved path', () => {
-      PathStorageService.save(makePath())
-      expect(PathStorageService.getById('path_test')).toBeDefined()
+    it('finds a saved path', async () => {
+      await PathStorageService.save(makePath())
+      expect(await PathStorageService.getById('path_test')).toBeDefined()
     })
   })
 
   describe('save', () => {
-    it('adds a new path', () => {
-      PathStorageService.save(makePath())
-      expect(PathStorageService.getAll()).toHaveLength(1)
+    it('adds a new path', async () => {
+      await PathStorageService.save(makePath())
+      expect(await PathStorageService.getAll()).toHaveLength(1)
     })
 
-    it('updates an existing path', () => {
-      PathStorageService.save(makePath())
-      PathStorageService.save(makePath({ title: 'Python Updated' }))
-      const paths = PathStorageService.getAll()
+    it('updates an existing path', async () => {
+      await PathStorageService.save(makePath())
+      await PathStorageService.save(makePath({ title: 'Python Updated' }))
+      const paths = await PathStorageService.getAll()
       expect(paths).toHaveLength(1)
       expect(paths[0].title).toBe('Python Updated')
     })
   })
 
   describe('create', () => {
-    it('creates a path with default values', () => {
-      const path = PathStorageService.create({
+    it('creates a path with default values', async () => {
+      const path = await PathStorageService.create({
         title: 'Nueva Ruta',
         goal: 'aprender node',
         category: 'tecnologia',
@@ -103,48 +103,48 @@ describe('PathStorageService', () => {
   })
 
   describe('updateTopic', () => {
-    it('marks a topic as completed and recalculates progress', () => {
-      PathStorageService.save(makePath())
-      const updated = PathStorageService.updateTopic('path_test', 'stage_1', 't1', true)
+    it('marks a topic as completed and recalculates progress', async () => {
+      await PathStorageService.save(makePath())
+      const updated = await PathStorageService.updateTopic('path_test', 'stage_1', 't1', true)
       expect(updated).toBeDefined()
       expect(updated!.stages[0].topics[0].completed).toBe(true)
       expect(updated!.stages[0].topics[0].completedAt).toBeDefined()
       expect(updated!.progress).toBe(33)
     })
 
-    it('marks a stage as completed when all topics done', () => {
-      PathStorageService.save(makePath())
-      PathStorageService.updateTopic('path_test', 'stage_1', 't1', true)
-      PathStorageService.updateTopic('path_test', 'stage_1', 't2', true)
-      const path = PathStorageService.getById('path_test')
+    it('marks a stage as completed when all topics done', async () => {
+      await PathStorageService.save(makePath())
+      await PathStorageService.updateTopic('path_test', 'stage_1', 't1', true)
+      await PathStorageService.updateTopic('path_test', 'stage_1', 't2', true)
+      const path = await PathStorageService.getById('path_test')
       expect(path!.stages[0].status).toBe('completed')
       expect(path!.progress).toBe(67)
     })
 
-    it('returns undefined for invalid path/stage/topic', () => {
-      PathStorageService.save(makePath())
-      expect(PathStorageService.updateTopic('invalid', 's1', 't1', true)).toBeUndefined()
-      expect(PathStorageService.updateTopic('path_test', 'invalid', 't1', true)).toBeUndefined()
+    it('returns undefined for invalid path/stage/topic', async () => {
+      await PathStorageService.save(makePath())
+      expect(await PathStorageService.updateTopic('invalid', 's1', 't1', true)).toBeUndefined()
+      expect(await PathStorageService.updateTopic('path_test', 'invalid', 't1', true)).toBeUndefined()
     })
   })
 
   describe('remove', () => {
-    it('deletes a path', () => {
-      PathStorageService.save(makePath())
-      PathStorageService.remove('path_test')
-      expect(PathStorageService.getAll()).toHaveLength(0)
+    it('deletes a path', async () => {
+      await PathStorageService.save(makePath())
+      await PathStorageService.remove('path_test')
+      expect(await PathStorageService.getAll()).toHaveLength(0)
     })
   })
 
   describe('recalculateProgress', () => {
-    it('calculates 0 for no topics', () => {
+    it('calculates 0 for no topics', async () => {
       const path = makePath({ stages: [{ id: 's0', name: 'Empty', description: '', order: 0, status: 'pending', topics: [] }] })
-      PathStorageService.save(path)
-      expect(PathStorageService.recalculateProgress('path_test')).toBe(0)
+      await PathStorageService.save(path)
+      expect(await PathStorageService.recalculateProgress('path_test')).toBe(0)
     })
 
-    it('returns 0 for missing path', () => {
-      expect(PathStorageService.recalculateProgress('ghost')).toBe(0)
+    it('returns 0 for missing path', async () => {
+      expect(await PathStorageService.recalculateProgress('ghost')).toBe(0)
     })
   })
 })

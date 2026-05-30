@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User, LearningPath, Project, ChatMessage, UserStats } from '@shared/types'
+import type { User, LearningPath, Project, UserStats } from '@shared/types'
 
 interface AuthState {
   user: User | null
@@ -127,26 +127,6 @@ export const useProjectStore = create<ProjectState>()((set) => ({
     })),
 }))
 
-interface ChatState {
-  messages: ChatMessage[]
-  addMessage: (msg: ChatMessage) => void
-  setMessages: (msgs: ChatMessage[]) => void
-  clearMessages: () => void
-}
-
-export const useChatStore = create<ChatState>()(
-  persist(
-    (set) => ({
-      messages: [],
-      addMessage: (msg) =>
-        set((state) => ({ messages: [...state.messages, msg].slice(-50) })),
-      setMessages: (msgs) => set({ messages: msgs }),
-      clearMessages: () => set({ messages: [] }),
-    }),
-    { name: 'pathforge_chat' },
-  ),
-)
-
 interface StatsState {
   stats: UserStats
   setStats: (stats: UserStats) => void
@@ -160,6 +140,7 @@ const DEFAULT_STATS: UserStats = {
   streak: 0,
   favoriteCategory: '',
   activeDays: 0,
+  longestStreak: 0,
 }
 
 export const useStatsStore = create<StatsState>()(

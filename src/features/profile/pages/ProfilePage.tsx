@@ -26,12 +26,14 @@ export function ProfilePage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    try {
-      setPaths(PathStorageService.getAll())
-      setStats(UserStorageService.getStats())
-    } catch (e) {
-      console.error('Error loading profile data:', e)
-    }
+    ;(async () => {
+      try {
+        setPaths(await PathStorageService.getAll())
+        setStats(await UserStorageService.getStats())
+      } catch (e) {
+        console.error('Error loading profile data:', e)
+      }
+    })()
   }, [])
 
   const startEditing = () => {

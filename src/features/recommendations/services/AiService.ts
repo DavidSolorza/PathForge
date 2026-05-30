@@ -1,13 +1,43 @@
-import type { LearningPath, Category, ChatMessage } from '@shared/types'
+import type { LearningPath, Category, ChatMessage, Resource } from '@shared/types'
 import { CATEGORIES } from '@shared/types'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
 import { config } from '@core/config'
 import { searchResources } from './curatedResources'
 
-interface TopicDef { name: string; description?: string }
+interface TopicDef { name: string; description?: string; content?: string; resources?: { title: string; url: string; type: string }[] }
 
 const SPECIFIC_TOPICS: Record<string, { stages: { name: string; topics: TopicDef[] }[] }> = {
+  java: { stages: [
+    { name: 'Fundamentos de Java', topics: [
+      { name: 'Sintaxis basica: variables, tipos de datos y operadores' },
+      { name: 'Estructuras de control: if, else, switch, bucles' },
+      { name: 'Arrays y la clase String en Java' },
+      { name: 'Programacion orientada a objetos: clases y objetos' },
+      { name: 'Metodos, constructores y sobrecarga' },
+    ]},
+    { name: 'POO avanzada y colecciones', topics: [
+      { name: 'Herencia, polimorfismo e interfaces' },
+      { name: 'Clases abstractas y metodos final' },
+      { name: 'Colecciones: List, Set, Map y genericos' },
+      { name: 'Manejo de excepciones: try-catch-finally' },
+      { name: 'Entrada/salida con java.io y java.nio' },
+    ]},
+    { name: 'APIs y frameworks Java', topics: [
+      { name: 'Expresiones lambda y Stream API' },
+      { name: 'Programacion concurrente con hilos' },
+      { name: 'Acceso a bases de datos con JDBC' },
+      { name: 'Introduccion a Spring Boot y Maven' },
+      { name: 'Creacion de APIs REST con Spring' },
+    ]},
+    { name: 'Java en produccion', topics: [
+      { name: 'Testing con JUnit y Mockito' },
+      { name: 'Buenas practicas y patrones de diseno' },
+      { name: 'Construccion y empaquetado con Maven/Gradle' },
+      { name: 'Despliegue de aplicaciones Java' },
+      { name: 'Proyecto final: aplicacion completa con Spring Boot' },
+    ]},
+  ]},
   python: { stages: [
     { name: 'Fundamentos de Python', topics: [
       { name: 'Variables y tipos de datos (int, float, str, bool)' },
@@ -245,8 +275,11 @@ function findSpecificTopics(goal: string): { stages: { name: string; topics: Top
     if (g.includes(key) || key.includes(g)) return data
   }
   
-  // Dynamic fallback generator to make it personalized even if not in database
-  const cleanGoal = goal.replace(/aprender|aprende|quiero aprender|dominando/gi, '').trim()
+  const cleanGoal = goal
+    .replace(/^(quiero\s+)?aprender\s+|^(quiero\s+)?aprende\s+|^(quiero\s+)?dominando\s+|^quiero\s+|^aprender\s+|^aprende\s+|^dominando\s+/gi, '')
+    .replace(/^para\s+|^como\s+|^desde\s+cero\s*/gi, '')
+    .replace(/desde cero$/gi, '')
+    .trim()
   const capitalizedGoal = cleanGoal ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1) : 'Nuevo Tema'
   
   return {
@@ -295,7 +328,7 @@ function findSpecificTopics(goal: string): { stages: { name: string; topics: Top
   }
 }
 
-async function generateAITopics(goal: string, context?: ChatMessage[]): Promise<{ stages: { name: string; topics: TopicDef[] }[] } | null> {
+async function generateAITopics(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences): Promise<{ stages: { name: string; topics: TopicDef[] }[] } | null> {
   const apiKey = localStorage.getItem('pathforge_gemini_api_key') || config.gemini.apiKey
   if (!apiKey) return null
   let contextText = ''
@@ -305,14 +338,25 @@ async function generateAITopics(goal: string, context?: ChatMessage[]): Promise<
       contextText = '\nContexto de la conversacion:\n' + ctxMessages.map((m) => `- ${m.content}`).join('\n')
     }
   }
-  const prompt = `Genera ruta aprendizaje para "${goal}".${contextText}\n\nSOLO JSON: {"stages":[{"name":"...","topics":[{"name":"..."}]}]}. 4 stages, 5 topics c/u, nombres MUY especificos con ejemplos. Espanol. Sin markdown.`
+
+  let preferencesText = ''
+  if (preferences) {
+    const hoursLabel = { '<3': 'menos de 3 horas', '3-5': '3-5 horas', '5-10': '5-10 horas', '10+': 'mas de 10 horas' }
+    const methodLabel = { 'lectura': 'leer y documentacion', 'video': 'videos y tutoriales', 'practica': 'practica directa con proyectos', 'mixto': 'mixto (todo)' }
+    const levelLabel = { 'beginner': 'principiante', 'intermediate': 'intermedio', 'advanced': 'avanzado' }
+    const projectLabel = { 'cortos': 'proyectos cortos (1-2 dias)', 'medianos': 'proyectos medianos (1 semana)', 'largos': 'proyectos largos (2+ semanas)' }
+    preferencesText = `\n\nPREFERENCIAS DEL USUARIO:\n- Tiempo semanal: ${hoursLabel[preferences.weeklyHours]}\n- Metodo preferido: ${methodLabel[preferences.learningMethod]}\n- Nivel actual: ${levelLabel[preferences.currentLevel]}\n- Proyectos: ${projectLabel[preferences.projectPreference]}`
+  }
+
+  const prompt = `Genera ruta aprendizaje para "${goal}".${contextText}${preferencesText}\n\nREGLAS:\n- SOLO JSON: {"stages":[{"name":"...","topics":[{"name":"...","content":"...","resources":[{"title":"...","url":"real_url","type":"documentation"}]]}]}\n- 4 stages, 5 topics c/u\n- Cada topic debe tener "content" con una mini-clase explicativa (3-5 lineas con codigo si aplica)\n- "resources" debe incluir URLs reales a documentacion oficial (MDN, python.org, react.dev, etc.)\n- Nombres MUY especificos con ejemplos practicos\n- ADAPTATE a las preferencias del usuario (tiempo, metodo, nivel, tipo de proyectos)\n- Espanol. Sin markdown alrededor del JSON.`
+
   try {
     const res = await fetch(`${config.gemini.apiUrl}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
       }),
     })
     if (!res.ok) return null
@@ -326,6 +370,17 @@ async function generateAITopics(goal: string, context?: ChatMessage[]): Promise<
   } catch { return null }
 }
 
+function generateFallbackContent(topicName: string, stageName: string, goal: string): string {
+  const techKeywords = ['python', 'javascript', 'react', 'node', 'css', 'html', 'typescript', 'sql', 'docker', 'git', 'api', 'base de datos', 'backend', 'frontend', 'web']
+  const isTech = techKeywords.some(k => goal.toLowerCase().includes(k) || topicName.toLowerCase().includes(k))
+
+  if (isTech) {
+    return `**${topicName}**\n\nEste tema cubre conceptos fundamentales relacionados con ${topicName.toLowerCase()}. La mejor forma de aprender es combinando teoria con practica directa.\n\n- Dedica tiempo a entender los conceptos clave\n- Sigue ejemplos paso a paso\n- Practica con ejercicios cortos\n- Busca documentacion oficial para profundizar\n\n**Recursos recomendados:** Busca tutoriales y documentacion de ${topicName.split('(')[0].trim()} en Google o YouTube.`
+  }
+
+  return `**${topicName}**\n\nParte de ${stageName.toLowerCase()} para dominar ${goal}.\n\nDedica tiempo a practicar y reforzar cada concepto antes de avanzar al siguiente tema.`
+}
+
 function stagesFromDefs(def: { stages: { name: string; topics: TopicDef[] }[] }, goal: string): LearningPath['stages'] {
   return def.stages.map((stage, si) => ({
     id: `stage_${Date.now()}_${si}`,
@@ -336,22 +391,25 @@ function stagesFromDefs(def: { stages: { name: string; topics: TopicDef[] }[] },
     topics: stage.topics.map((topic, ti) => ({
       id: `topic_${Date.now()}_${si}_${ti}`,
       name: topic.name,
-      description: topic.description || `Paso para ${stage.name.toLowerCase()}`,
+      content: topic.content || generateFallbackContent(topic.name, stage.name, goal),
       difficulty: (si === 0 ? 'easy' : si === 1 ? 'medium' : 'hard') as 'easy' | 'medium' | 'hard',
       completed: false,
-      resources: [{
-        id: `res_${Date.now()}_${si}_${ti}_0`,
-        title: `Investiga sobre: ${topic.name}`,
-        type: 'documentation' as const,
-        url: '#',
-      }],
+      resources: (topic.resources && topic.resources.length > 0
+        ? topic.resources.map((r, ri) => ({
+            id: `res_${Date.now()}_${si}_${ti}_${ri}`,
+            title: r.title,
+            type: (r.type === 'video' ? 'video' : 'article') as Resource['type'],
+            url: r.url && r.url !== '#' ? r.url : '#',
+          })).filter(r => r.url !== '#')
+        : []
+      ),
     })),
   }))
 }
 
 function detectCategory(goal: string): { category: Category; difficulty: 'beginner' | 'intermediate' | 'advanced' } {
   const g = goal.toLowerCase()
-  if (g.includes('python') || g.includes('program') || g.includes('javascript') || g.includes('desarrollo') || g.includes('progra') || g.includes('web') || g.includes('ia') || g.includes('datos') || g.includes('ciberseguridad') || g.includes('docker') || g.includes('react') || g.includes('node') || g.includes('css') || g.includes('html')) return { category: 'tecnologia', difficulty: 'beginner' }
+  if (g.includes('python') || g.includes('program') || g.includes('javascript') || g.includes('java') || g.includes('desarrollo') || g.includes('progra') || g.includes('web') || g.includes('ia') || g.includes('datos') || g.includes('ciberseguridad') || g.includes('docker') || g.includes('react') || g.includes('node') || g.includes('css') || g.includes('html')) return { category: 'tecnologia', difficulty: 'beginner' }
   if (g.includes('ingl') || g.includes('franc') || g.includes('alem') || g.includes('idioma')) return { category: 'idiomas', difficulty: 'beginner' }
   if (g.includes('dise') || g.includes('ux') || g.includes('ui') || g.includes('figma')) return { category: 'diseno', difficulty: 'beginner' }
   if (g.includes('guitar') || g.includes('piano') || g.includes('music') || g.includes('canto')) return { category: 'musica', difficulty: 'beginner' }
@@ -365,11 +423,13 @@ function detectCategory(goal: string): { category: Category; difficulty: 'beginn
 }
 
 function generateTitle(goal: string): string {
-  const g = goal.toLowerCase()
-  if (g.startsWith('aprender ')) return 'Aprendiendo ' + goal.slice(9).trim()
-  if (g.startsWith('aprende ')) return 'Aprendiendo ' + goal.slice(8).trim()
-  if (g.startsWith('quiero aprender ')) return 'Aprendiendo ' + goal.slice(16).trim()
-  return 'Dominando ' + goal.trim()
+  const clean = goal
+    .replace(/^(quiero\s+)?aprender\s+|^(quiero\s+)?aprende\s+|^(quiero\s+)?dominando\s+|^quiero\s+|^aprender\s+|^aprende\s+|^dominando\s+/gi, '')
+    .replace(/^para\s+|^como\s+|^desde\s+cero\s*/gi, '')
+    .replace(/desde cero$/gi, '')
+    .trim()
+  const topic = clean || goal.trim()
+  return topic.charAt(0).toUpperCase() + topic.slice(1)
 }
 
 const SYSTEM_PROMPT = `Eres un PROFESOR UNIVERSAL experto en ABSOLUTAMENTE TODAS las areas del conocimiento. Eres el corazon de PathForge AI, una plataforma inteligente que genera rutas personalizadas de aprendizaje y recomienda nuevas habilidades segun el avance del usuario. Hablas espanol. Eres paciente, claro, didactico, profesional, adaptable, amigable y preciso.
@@ -493,13 +553,13 @@ export const AiService = {
     }
   },
 
-  async generatePath(goal: string, context?: ChatMessage[]): Promise<LearningPath> {
+  async generatePath(goal: string, context?: ChatMessage[], preferences?: import('@shared/types').PathPreferences): Promise<LearningPath> {
     const { category, difficulty } = detectCategory(goal)
     const title = generateTitle(goal)
     const specific = findSpecificTopics(goal)
     let stagesData = specific
     if (!stagesData) {
-      stagesData = await generateAITopics(goal, context) || GENERIC_TOPICS
+      stagesData = await generateAITopics(goal, context, preferences) || GENERIC_TOPICS
     }
     const stages = stagesFromDefs(stagesData, goal)
     const path = PathStorageService.create({ title, goal, category, difficulty, stages })
@@ -509,7 +569,7 @@ export const AiService = {
   },
 
   async recommendNext(pathId: string): Promise<string> {
-    const path = PathStorageService.getById(pathId)
+    const path = await PathStorageService.getById(pathId)
     if (!path) return 'No encontre la ruta. Que deseas aprender?'
     const allTopics = path.stages.flatMap((s) => s.topics)
     const completed = allTopics.filter((t) => t.completed).length
@@ -539,58 +599,90 @@ export const AiService = {
       content = getSmartFallback(userMessage)
     }
 
-    return { id: `chat_${Date.now()}`, role: 'assistant', content, timestamp: new Date().toISOString() }
+    return { id: `msg_${Date.now()}_ai`, role: 'assistant', content, timestamp: new Date().toISOString() }
   },
+}
+
+function extractTopic(msg: string): string {
+  const m = msg.toLowerCase()
+  const knownTopics = ['python', 'javascript', 'js', 'react', 'html', 'css', 'docker', 'sql', 'node', 'git', 'typescript', 'ciberseguridad', 'machine learning', 'ia', 'datos', 'pandas']
+  for (const topic of knownTopics) {
+    if (m.includes(topic)) return topic
+  }
+  return ''
 }
 
 function getSmartFallback(msg: string): string {
   const m = msg.toLowerCase()
 
+  // === CHECK-INS: progreso, readiness, proyectos ===
+  const checkProgress = m.includes('progreso') || m.includes('avance') || m.includes('como voy') || m.includes('cuanto llevo')
+  const checkReadiness = m.includes('listo') || m.includes('preparado') || m.includes('suficiente') || m.includes('puedo empezar')
+  const checkProject = m.includes('proyecto') || m.includes('poryecto') || m.includes('project')
+  const checkNext = m.includes('que sigue') || m.includes('siguiente') || m.includes('despues') || m.includes('next')
+  const checkAnalyze = m.includes('analiza') || m.includes('analisis') || m.includes('evaluame') || m.includes('evaluacion')
+
+  if (checkAnalyze || checkProgress || (checkReadiness && checkProject) || (checkProgress && checkProject)) {
+    return `**Analisis de progreso - Estas listo para un proyecto?**\n\nPara saber si estas listo, revisa estas 3 areas:\n\n**1. Conceptos fundamentales:**\n- Puedes explicar lo que has aprendido sin mirar tutoriales?\n- Entiendes el "por que" detras de cada linea, no solo el "como"?\n- Has escrito el mismo codigo de memoria, sin copiar y pegar?\n\n**2. Resolucion de problemas:**\n- Cuando te sale un error, sabes por donde empezar a depurar?\n- Has resuelto al menos 5 ejercicios por tu cuenta (sin ver solucion)?\n- Sabes usar Google/documentacion para buscar lo que no sabes?\n\n**3. Autonomia:**\n- Puedes empezar un archivo en blanco y escribir codigo util?\n- Has personalizado o modificado ejemplos existentes?\n- Sabes usar Git para guardar tu progreso?\n\n**Como saber si estas listo:**\n* Si respondiste "si" a la mayoria, estas listo para un proyecto guiado (tipo tutorial con tu propio twist)\n* Si respondiste "si" a todo, lanzate a un proyecto propio\n* Si respondiste "no" en varias, dedica 1-2 semanas mas a hacer ejercicios especificos\n\n**Mi recomendacion:** El mejor momento para empezar un proyecto es cuando tienes miedo de no estar listo. El proyecto te va a ensenar lo que los tutoriales no pueden. Empieza con algo pequeno (que puedas terminar en 1 semana) y ve creciendo.\n\nQuieres que te recomiende ideas de proyectos para empezar?`
+  }
+
+  if (checkReadiness) {
+    return `**Evaluacion de preparacion**\n\nNo importa en que tema estes, estas son las senales de que puedes avanzar al siguiente nivel:\n\n**Senales verdes (sigue adelante):**\n- Explicas los conceptos sin dudar\n- Los ejercicios faciles te aburren\n- Cometes errores nuevos (no los mismos de siempre)\n- Sabes lo que NO sabes y puedes buscarlo\n\n**Senales amarillas (practica mas):**\n- Necesitas tutorial abierto para escribir codigo\n- Los errores te paralizan\n- Copias y pegas sin entender del todo\n\n**Senales rojas (vuelve a lo basico):**\n- No puedes explicar un ejemplo simple con tus palabras\n- Saltaste conceptos por ir muy rapido\n- Llevas mas de 2 semanas en el mismo tema sin avanzar\n\n**Ejercicio de autoevaluacion:** Intenta hacer un ejercicio de la categoria anterior sin ayuda. Si puedes, avanza. Si no puedes, repasa.\n\nNecesitas ayuda con algo en concreto?`
+  }
+
+  if (checkNext) {
+    return `**Que sigue en tu aprendizaje?**\n\nEl camino tipico de aprendizaje en programacion es:\n\n**Fase 1 - Fundamentos (1-2 meses):**\n* Sintaxis basica: variables, condicionales, bucles\n* Estructuras de datos: arrays/lista, objetos/diccionarios\n* Funciones y scope\n\n**Fase 2 - Herramientas (2-3 meses):**\n* Git y GitHub\n* Terminal y linea de comandos\n* Debugging basico\n\n**Fase 3 - Proyectos guiados (3-6 meses):**\n* 5-10 proyectos pequenos siguiendo tutoriales\n* Cada proyecto debe agregar algo nuevo que no estaba en el tutorial\n\n**Fase 4 - Proyecto propio (6+ meses):**\n* Idea propia, por pequena que sea\n* Publica en GitHub\n* Comparte en comunidades para feedback\n\n**Fase 5 - Especializacion:**\n* Elige un area: frontend, backend, datos, mobile, etc.\n* Aprende el stack especifico de esa area\n\n**Mi consejo:** No te apresures a llegar a Fase 5. La mayoria abandona porque quiere correr antes de caminar. Disfruta cada fase.\n\nEn que fase dirias que estas ahorita?`
+  }
+
+  if (checkProject) {
+    return `**Ideas de proyectos por nivel**\n\n**Principiante (1-2 semanas cada uno):**\n* Calculadora con historial de operaciones\n* Generador de contrasenas seguras\n* Lista de tareas (todo list) en terminal\n* Juego de adivinar un numero\n* Conversor de unidades (temperatura, moneda, distancia)\n\n**Intermedio (2-4 semanas):**\n* Blog personal con pagina estatica\n* API REST de una biblioteca (libros, autores, prestamos)\n* Dashboard con datos de clima (consumiendo API gratuita)\n* Clon basico de Twitter (publicar, seguir, timeline)\n\n**Avanzado (1-3 meses):**\n* App full-stack con autenticacion\n* E-commerce con carrito de compras\n* Sistema de gestion de tareas colaborativo\n* Clon de Trello/Notion simplificado\n\n**Regla de oro para proyectos:**\n1. Elige algo que te entusiasme (vas a pasar MUCHAS horas ahi)\n2. Dividelo en tareas de 30 minutos maximo\n3. Termina antes de que sea perfecto (el proyecto perfecto no existe)\n4. Muestralo aunque este incompleto\n\nQue nivel dirias que tienes?`
+  }
+
   if (m.includes('python')) {
-    return `**Python - Guia rapida**\n\nPython es un lenguaje interpretado, de tipado dinamico. Se usa para web, datos, IA, automatizacion.\n\n**Variables:** \`nombre = "Ana"\`, \`edad = 25\` (no necesitas declarar tipo)\n**Listas:** \`numeros = [1, 2, 3]\`, \`numeros.append(4)\`\n**if/else:**\n\`\`\`python\nif edad >= 18:\n    print("Mayor de edad")\nelse:\n    print("Menor")\n\`\`\`\n**Bucle for:** \`for i in range(5): print(i)\`\n\n**Autores:** Busca a **SoyDalto** para empezar, **PildorasInformaticas** para intermedio, **freeCodeCamp** para proyectos.\n\nQuieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?`
+    return `**Python - De principiante a practico**\n\nPython es tu mejor primer lenguaje por su sintaxis clara y su versatilidad (web, datos, IA, automatizacion).\n\n**Tu primer programa:**\n\`\`\`python\n# Pide tu nombre y saluda\nnombre = input("Como te llamas? ")\nedad = int(input("Cuantos anos tienes? "))\nanios = 100 - edad\nprint(f"{nombre}, te quedan {anios} anos para llegar a 100!")\n\`\`\`\n\n**Orden de aprendizaje:**\n1. Variables, tipos, input/output\n2. Condicionales (if/elif/else)\n3. Bucles (for, while)\n4. Listas y diccionarios\n5. Funciones\n6. Archivos y excepciones\n\n**Mini-ejercicio para hoy:**\nEscribe un programa que pida 5 numeros, los guarde en una lista, y muestre el promedio. Intentalo antes de buscar la solucion!\n\n**Autores:** Busca a **SoyDalto** (fundamentos), **PildorasInformaticas** (intermedio), **freeCodeCamp** (proyectos)\n\nQuieres que genere una ruta personalizada con el Generador de rutas?`
   }
 
   if (m.includes('javascript') || m.includes('js')) {
-    return `**JavaScript - Guia rapida**\n\nJS es el lenguaje de la web.\n\n**Variables:** \`let nombre = "Ana"\`, \`const edad = 25\`\n**Arrow function:** \`const suma = (a, b) => a + b\`\n**Arrays:**\n\`\`\`javascript\nconst nums = [1, 2, 3, 4, 5]\nconst pares = nums.filter(n => n % 2 === 0)\n\`\`\`\n\n**Autores:** Busca a **midudev** para JS moderno y React, **SoyDalto** para fundamentos.\n\nQue parte te interesa mas?`
+    return `**JavaScript - Domina la web**\n\nJS es el lenguaje de los navegadores y ahora tambien del servidor con Node.js.\n\n**Ejercicio practico - Manipular el DOM:**\n\`\`\`javascript\n// Crea una lista interactiva\nconst boton = document.createElement("button")\nboton.textContent = "Agregar item"\nboton.onclick = () => {\n  const item = document.createElement("li")\n  item.textContent = prompt("Nuevo item:")\n  document.getElementById("lista").appendChild(item)\n}\ndocument.body.appendChild(boton)\n\`\`\`\n\n**Orden recomendado:**\n1. Variables (let, const), tipos, funciones\n2. Arrays y metodos (map, filter, reduce)\n3. DOM y eventos\n4. Fetch y APIs\n5. Async/await\n\n**Mini-ejercicio:**\nCrea un contador en HTML con 3 botones: +1, -1, reset. Conectalo con JS. Cuando llegue a 10, muestra un mensaje.\n\n**Autores:** Busca a **midudev** (JS moderno y React), **SoyDalto** (fundamentos)\n\nNecesitas ayuda con algo en especifico?`
   }
 
   if (m.includes('react')) {
-    return `**React - Guia rapida**\n\n**Componente basico:**\n\`\`\`tsx\nfunction Saludo({ nombre }) {\n  return <h1>Hola {nombre}</h1>\n}\n\`\`\`\n**Estado:** \`const [contador, setContador] = useState(0)\`\n**Efectos:** \`useEffect(() => { ... }, [])\`\n\n**Autor:** Busca a **midudev**\n\nTienes experiencia con HTML/CSS/JS?`
+    return `**React - Tu primer componente**\n\nReact es una libreria para construir interfaces con componentes reutilizables.\n\n**Mini-app: Lista de tareas**\n\`\`\`tsx\nfunction App() {\n  const [tareas, setTareas] = useState([])\n  const [input, setInput] = useState("")\n\n  const agregar = () => {\n    setTareas([...tareas, { id: Date.now(), texto: input, hecha: false }])\n    setInput("")\n  }\n\n  return (\n    <div>\n      <input value={input} onChange={e => setInput(e.target.value)} />\n      <button onClick={agregar}>Agregar</button>\n      <ul>{tareas.map(t => <li key={t.id}>{t.texto}</li>)}</ul>\n    </div>\n  )\n}\n\`\`\`\n\n**Prerequisitos:** HTML, CSS y JavaScript (arrays, funciones, destructuring). Sin eso, React se vuelve confuso.\n**Orden:** JS basico > JS moderno (ES6+) > React\n\n**Mini-ejercicio:**\nToma el ejemplo de arriba, agregale un checkbox para marcar tareas como hechas, y un boton para borrar las completadas.\n\n**Autor:** Busca a **midudev**\n\nTienes experiencia con HTML/CSS/JS o necesitas empezar desde ahi?`
   }
 
   if (m.includes('html')) {
-    return `**HTML - Estructura basica:**\n\`\`\`html\n<!DOCTYPE html>\n<html>\n<head><title>Titulo</title></head>\n<body>\n  <h1>Titulo</h1>\n  <p>Parrafo</p>\n</body>\n</html>\n\`\`\`\n\n**Autores:** Busca a **SoyDalto** para HTML+CSS, **MDN** como referencia.`
+    return `**HTML5 - Estructura semantica**\n\nHTML no es un lenguaje de programacion, es de marcado. Define la estructura de tu pagina.\n\n**Estructura moderna:**\n\`\`\`html\n<!DOCTYPE html>\n<html lang="es">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Mi pagina</title>\n</head>\n<body>\n  <header>\n    <nav><a href="/">Inicio</a> <a href="/blog">Blog</a></nav>\n  </header>\n  <main>\n    <article>\n      <h1>Titulo del articulo</h1>\n      <p>Contenido principal aqui.</p>\n    </article>\n    <aside>Barra lateral</aside>\n  </main>\n  <footer>&copy; 2026</footer>\n</body>\n</html>\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una pagina personal con: header con tu nombre, main con 3 secciones (sobre mi, proyectos, contacto), y footer. Usa etiquetas semanticas.\n\n**Autores:** Busca a **SoyDalto** (HTML+CSS), **MDN** (referencia oficial)`
   }
 
   if (m.includes('css')) {
-    return `**CSS - Flexbox:**\n\`\`\`css\n.contenedor {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  gap: 16px;\n}\n\`\`\`\n\n**Autores:** Busca a **midudev** para CSS moderno, **CSS Tricks** para guias.`
+    return `**CSS - De float a Grid**\n\nCSS controla la apariencia. El layout moderno se hace con Flexbox y Grid.\n\n**Centrar algo (la pregunta mas comun):**\n\`\`\`css\n.contenedor {\n  display: grid;\n  place-items: center;\n  min-height: 100vh;\n}\n\`\`\`\n\n**Layout responsive con Grid:**\n\`\`\`css\ntarjetas {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: 1rem;\n  padding: 1rem;\n}\n\`\`\`\n\n**Mini-ejercicio:**\nToma una pagina HTML simple y aplicale: un header fijo arriba, main con grid de 3 columnas que se vuelva 1 en movil, colores con variables CSS.\n\n**Autores:** Busca a **midudev** (CSS moderno), **CSS Tricks** (guias completas)`
   }
 
   if (m.includes('hola') || m.includes('buenas') || m.includes('hey')) {
-    return 'Hola! Soy tu mentor de aprendizaje. Puedo ayudarte con cualquier tema. Tambien puedes crear una ruta de aprendizaje usando el modo "Generador de rutas". Que quieres aprender hoy?'
+    return 'Hola! Soy tu mentor de aprendizaje. Puedo ayudarte con programacion y tecnologia. Tambien puedes crear una ruta de aprendizaje personalizada con el Generador de rutas. Que quieres aprender hoy?'
   }
 
   if (m.includes('gracias') || m.includes('thanks')) {
-    return 'De nada! Sigue adelante, la constancia es lo unico que importa. Si necesitas algo mas, aqui estoy.'
+    return 'De nada! Recuerda: la constancia vence al talento. 15 minutos diarios > 5 horas un solo dia. Si necesitas algo mas, aqui estoy.'
   }
 
   const topicTexts: Record<string, { response: string; author: string }> = {
-    docker: { response: '**Docker:**\n- **Imagen:** plantilla con todo lo necesario\n- **Contenedor:** instancia en ejecucion\n- \`docker pull ubuntu\`\n- \`docker run -it ubuntu bash\`', author: 'midudev' },
-    sql: { response: '**SQL - Consultas:**\n\`\`\`sql\nSELECT nombre, edad FROM usuarios WHERE edad > 18 ORDER BY edad DESC;\n\`\`\`', author: 'PildorasInformaticas' },
-    node: { response: '**Node.js:** JS en el servidor. \`require("fs")\` para archivos, \`http.createServer()\` para servidor web.', author: 'midudev' },
-    git: { response: '**Git:**\n\`\`\`\ngit init\ngit add .\ngit commit -m "msg"\ngit push\ngit pull\n\`\`\`', author: 'SoyDalto' },
-    typescript: { response: '**TypeScript:**\n\`\`\`typescript\ninterface Usuario { nombre: string; edad: number }\nconst user: Usuario = { nombre: "Ana", edad: 25 }\n\`\`\`', author: 'midudev' },
-    emprendimiento: { response: '**Lean Startup:** MVP -> Medir -> Aprender. Ciclo: Ideas -> Construir -> Medir -> Aprender.', author: 'Yunuen Perez' },
-    productividad: { response: '**GTD:** 1) Captura todo, 2) Clarifica, 3) Organiza, 4) Revisa, 5) Ejecuta.', author: 'David Allen' },
-    matematicas: { response: '**Regla de tres:** Si 5 cuestan $25, 8 cuestan x. x = (8 * 25) / 5 = $40', author: 'Matematicas profe Alex' },
-    ciberseguridad: { response: '**Triangulo CIA:** Confidencialidad, Integridad, Disponibilidad.', author: 'HackerSploit' },
-    inteligencia: { response: '**ML:** Supervisado (datos etiquetados), No supervisado (sin etiquetas), Reforzado (prueba y error).', author: 'DotCSV' },
-    datos: { response: '**Pandas:** \`df = pd.read_csv("datos.csv")\`, \`df.head()\`, \`df.describe()\`, \`df.groupby("cat").mean()\`', author: 'freeCodeCamp' },
+    docker: { response: `**Docker - Tu entorno portatil**\n\nDocker empaqueta tu app con todo lo que necesita para funcionar en cualquier maquina.\n\n**Comandos esenciales:**\n\`\`\`bash\n# Descargar y ejecutar Ubuntu interactivo\ndocker run -it ubuntu bash\n\n# Listar contenedores activos\ndocker ps\n\n# Construir desde Dockerfile\ndocker build -t mi-app .\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un Dockerfile para una app de Node.js que: use node:18, copie package.json, ejecute npm install, exponga el puerto 3000.`, author: 'midudev' },
+    sql: { response: `**SQL - Consulta tu base de datos**\n\nSQL te permite preguntarle cosas a una base de datos relacional.\n\n**Las 4 operaciones basicas (CRUD):**\n\`\`\`sql\n-- Crear tabla\nCREATE TABLE usuarios (id INT, nombre TEXT, edad INT);\n\n-- Insertar\nINSERT INTO usuarios VALUES (1, 'Ana', 25);\n\n-- Consultar\nSELECT nombre, edad FROM usuarios WHERE edad > 18;\n\n-- Actualizar\nUPDATE usuarios SET edad = 26 WHERE nombre = 'Ana';\n\n-- Eliminar\nDELETE FROM usuarios WHERE id = 1;\n\`\`\`\n\n**Mini-ejercicio:**\nCrea una tabla "productos" con id, nombre, precio, stock. Inserta 5 productos. Consulta los que cuestan menos de $100.`, author: 'PildorasInformaticas' },
+    node: { response: `**Node.js - JS fuera del navegador**\n\nNode te permite escribir servidores, APIs, y herramientas con JavaScript.\n\n**Servidor HTTP minimo:**\n\`\`\`javascript\nconst http = require('http')\nconst server = http.createServer((req, res) => {\n  res.writeHead(200, { 'Content-Type': 'application/json' })\n  res.end(JSON.stringify({ mensaje: 'Hola mundo' }))\n})\nserver.listen(3000, () => console.log('Servidor en http://localhost:3000'))\n\`\`\`\n\n**Orden de aprendizaje:** Modulos nativos (fs, path, http) > Express > Bases de datos > Autenticacion\n\n**Mini-ejercicio:**\nCrea un servidor con Express que tenga 3 rutas: GET / (html simple), GET /api/usuarios (JSON con array), POST /api/usuarios (recibe JSON y responde "creado").`, author: 'midudev' },
+    git: { response: `**Git - Control de versiones**\n\nGit registra cada cambio de tu codigo para que puedas volver atras, colaborar, y tener respaldo.\n\n**Flujo basico diario:**\n\`\`\`bash\ngit init\ngit add .\ngit commit -m "mensaje descriptivo"\ngit log --oneline\ngit checkout -b nueva-funcionalidad\n# ... trabajas ...\ngit add . && git commit -m "agrega login"\ngit checkout main\ngit merge nueva-funcionalidad\n\`\`\`\n\n**Mini-ejercicio:**\nCrea un repo local, haz 3 commits, crea una rama "experimento", haz 2 commits ahi, vuelve a main y fusea la rama.`, author: 'SoyDalto' },
+    typescript: { response: `**TypeScript - JS con superpoderes**\n\nTS anade tipos a JS para evitar errores antes de ejecutar.\n\n**Diferencia clave:**\n\`\`\`typescript\n// JS - error en ejecucion\nfunction suma(a, b) { return a + b }\nsuma(5, "hola") // "5hola"\n\n// TS - error en compilacion\nfunction suma(a: number, b: number): number {\n  return a + b\n}\nsuma(5, "hola") // Error: string no es number\n\`\`\`\n\n**Mini-ejercicio:**\nToma una funcion JS que maneje un array de usuarios (nombre, edad, email) y pasala a TS con interfaces.`, author: 'midudev' },
+    ciberseguridad: { response: `**Ciberseguridad - Protege tu codigo**\n\n**Triangulo CIA:** Confidencialidad, Integridad, Disponibilidad.\n\n**Practicas esenciales:**\n- Nunca subas claves API ni tokens a GitHub\n- Usa variables de entorno (.env)\n- Valida y sanitiza toda entrada del usuario (SQL injection, XSS)\n- Usa HTTPS en produccion\n- Contrasenas: hash con bcrypt, nunca texto plano\n\n**Autores:** Busca a **HackerSploit**, **S4vitar**`, author: 'HackerSploit' },
+    inteligencia: { response: `**Machine Learning - Conceptos clave**\n\n**Tipos de aprendizaje:**\n- **Supervisado:** datos etiquetados (clasificacion, regresion)\n- **No supervisado:** sin etiquetas (clustering, asociacion)\n- **Reforzado:** prueba y error con recompensas\n\n**Pilas tecnologicas:**\n- Python + scikit-learn para empezar\n- TensorFlow / PyTorch para deep learning\n- Pandas + NumPy para manipulacion de datos\n\n**Autores:** Busca a **DotCSV** (conceptos), **freeCodeCamp** (practico)`, author: 'DotCSV' },
+    datos: { response: `**Analisis de datos con Python**\n\n**Pandas - Operaciones diarias:**\n\`\`\`python\nimport pandas as pd\n\ndf = pd.read_csv("ventas.csv")\ndf.head(10)           # primeras filas\ndf.describe()          # estadisticas\ndf.groupby("ciudad").sum()  # agrupar\ndf[df["monto"] > 100]  # filtrar\n\`\`\`\n\n**Mini-ejercicio:**\nDescarga un CSV de ventas (o crea uno), calcula: total por mes, producto mas vendido, promedio por cliente.`, author: 'freeCodeCamp' },
   }
 
   for (const [key, val] of Object.entries(topicTexts)) {
-    if (m.includes(key)) return `${val.response}\n\n**Autor:** Busca a **${val.author}**\n\nQuieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?`
+    if (m.includes(key)) return `${val.response}\n\n**Autor:** Busca a **${val.author}**\n\nQuieres que genere una ruta de aprendizaje personalizada con el Generador de rutas?`
   }
 
-  return `**${msg} - Guia de aprendizaje**\n\n**Paso 1 - Fundamentos:**\n* Busca en Google o YouTube "[tema] para principiantes"\n* Identifica los conceptos clave y la terminologia basica\n* Consigue las herramientas o materiales necesarios\n\n**Paso 2 - Practica guiada:**\n* Dedica 15-20 min diarios. La consistencia vence al talento\n* Sigue tutoriales paso a paso para principiantes\n* Anota errores comunes para evitarlos\n\n**Paso 3 - Investigacion y recursos:**\n* Busca comunidades del tema en Reddit, Discord, Telegram\n* Encuentra creadores de contenido especializados en ese tema\n* "Ensenar es aprender dos veces": explica lo que aprendes\n\n**Paso 4 - Autonomia:**\n* Propone tu propio proyecto o meta personal\n* Evalua tu progreso cada semana\n* Busca temas avanzados por tu cuenta\n\nQuieres que genere una ruta de aprendizaje con el modo Generador de rutas, que profundice en algun paso, o que te haga un ejercicio/examen?`
+  const detected = extractTopic(msg)
+  const topicLabel = detected || msg.trim().split(' ').filter(w => w.length > 3).slice(-3).join(' ') || 'programacion'
+
+  return `**${topicLabel} - Ruta de aprendizaje recomendada**\n\n**Paso 1 - Fundamentos (1-2 semanas):**\n* Busca en YouTube "Curso de ${topicLabel} para principiantes"\n* Identifica los conceptos clave: que es, para que sirve, las herramientas necesarias\n* Instala y configura tu entorno de trabajo\n* Completa 3 ejercicios basicos en tu primera semana\n\n**Paso 2 - Practica dirigida (2-4 semanas):**\n* Dedica 20 minutos diarios. Mejor poco cada dia que mucho un solo dia\n* Sigue tutoriales paso a paso y REPITE cada ejercicio sin mirar la solucion\n* Crea un documento con errores comunes y como solucionarlos\n* Explica cada concepto en voz alta como si se lo ensenaras a alguien\n\n**Paso 3 - Proyecto personal (4-6 semanas):**\n* Proponte un proyecto pequeno pero realista sobre ${topicLabel}\n* Dividelo en tareas de 30 minutos cada una\n* Usa Git desde el dia 1 (aunque estes solo)\n* Comparte tu progreso en comunidades del tema\n\n**Paso 4 - Profundizacion:**\n* Compara ${topicLabel} con tecnologias similares\n* Lee documentacion oficial, no solo tutoriales\n* Ensenale a alguien lo que aprendiste\n\n**Regla de oro:** La consistencia vence al talento. 20 minutos diarios durante 6 meses te convierten en alguien competente.\n\nQuieres que genere una ruta personalizada con el Generador de rutas?`
 }

@@ -18,7 +18,6 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
   const addToast = useToastStore((s) => s.addToast)
 
   const isEditing = !!editId
-  const existing = editId ? ProjectStorageService.getById(editId) : null
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -32,23 +31,35 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
 
   useEffect(() => {
     if (open) {
-      if (existing) {
-        setName(existing.name)
-        setDescription(existing.description)
-        setStatus(existing.status)
-        setRepoUrl(existing.repoUrl || '')
-        setDemoUrl(existing.demoUrl || '')
-        setTechnologies(existing.technologies)
-      } else {
-        setName('')
-        setDescription('')
-        setStatus('draft')
-        setRepoUrl('')
-        setDemoUrl('')
-        setTechnologies([])
-      }
-      setTechInput('')
-      setErrors({})
+      ;(async () => {
+        setTechInput('')
+        setErrors({})
+        if (editId) {
+          const existing = await ProjectStorageService.getById(editId)
+          if (existing) {
+            setName(existing.name)
+            setDescription(existing.description)
+            setStatus(existing.status)
+            setRepoUrl(existing.repoUrl || '')
+            setDemoUrl(existing.demoUrl || '')
+            setTechnologies(existing.technologies)
+          } else {
+            setName('')
+            setDescription('')
+            setStatus('draft')
+            setRepoUrl('')
+            setDemoUrl('')
+            setTechnologies([])
+          }
+        } else {
+          setName('')
+          setDescription('')
+          setStatus('draft')
+          setRepoUrl('')
+          setDemoUrl('')
+          setTechnologies([])
+        }
+      })()
     }
   }, [open, editId])
 
@@ -79,7 +90,7 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
     setSaving(true)
     try {
       if (isEditing && editId) {
-        ProjectStorageService.update(editId, {
+        await ProjectStorageService.update(editId, {
           name: name.trim(),
           description: description.trim(),
           technologies,
@@ -89,7 +100,7 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
         })
         addToast('success', 'Proyecto actualizado')
       } else {
-        ProjectStorageService.create({
+        await ProjectStorageService.create({
           name: name.trim(),
           description: description.trim(),
           technologies,
@@ -99,7 +110,7 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
         })
         addToast('success', 'Proyecto creado')
       }
-      setProjects(ProjectStorageService.getAll())
+      setProjects(await ProjectStorageService.getAll())
       onClose()
     } catch {
       addToast('error', 'Error al guardar el proyecto')

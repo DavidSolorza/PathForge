@@ -40,52 +40,75 @@ interface MessageContentProps {
 }
 
 export function MessageContent({ content, role }: MessageContentProps) {
-  const lines = content.split('\n')
-
   if (role === 'user') {
     return <>{content}</>
   }
 
-  return (
-    <div className="space-y-1.5">
-      {lines.map((line, i) => {
-        if (isSeparator(line)) {
-          return <hr key={i} className="border-neutral-200 my-1" />
-        }
-        if (isSectionHeader(line)) {
-          return (
-            <p key={i} className="text-sm font-semibold text-neutral-900 pt-1">
-              {line}
-            </p>
-          )
-        }
-        if (line.trim() === '') {
-          return <div key={i} className="h-1" />
-        }
-        if (line.trimStart().startsWith('•') || line.trimStart().startsWith('-')) {
-          return (
-            <div key={i} className="flex gap-2 text-sm text-neutral-700">
-              <span className="text-neutral-400 mt-0.5 select-none">•</span>
-              <span className="flex-1">{parseLine(line.replace(/^[•\-]\s*/, ''))}</span>
+  const blocks = content.split(/(```[\s\S]*?```)/)
+  const elements: ReactNode[] = []
+  let blockIndex = 0
+
+  for (const block of blocks) {
+    if (block.startsWith('```') && block.endsWith('```')) {
+      const lang = block.split('\n')[0].replace(/^```/, '').trim()
+      const code = block.slice(3 + lang.length + (lang ? 0 : 0)).replace(/```$/, '').trim()
+      const langLabel = lang ? lang : ''
+      elements.push(
+        <div key={`code-${blockIndex++}`} className="my-2 rounded-lg border border-neutral-200 bg-neutral-900 overflow-hidden">
+          {langLabel && (
+            <div className="border-b border-neutral-700 bg-neutral-800 px-3 py-1 text-xs text-neutral-400 font-medium">
+              {langLabel}
             </div>
-          )
-        }
-        if (line.trimStart().match(/^\d+\./)) {
-          return (
-            <div key={i} className="flex gap-2 text-sm text-neutral-700">
-              <span className="text-neutral-500 font-medium min-w-[1.5ch] select-none">
-                {line.trim().match(/^\d+/)?.[0]}
-              </span>
-              <span className="flex-1">{parseLine(line.replace(/^\d+\.\s*/, ''))}</span>
-            </div>
-          )
-        }
-        return (
-          <p key={i} className="text-sm text-neutral-700 leading-relaxed">
-            {parseLine(line)}
-          </p>
-        )
-      })}
-    </div>
-  )
+          )}
+          <pre className="overflow-x-auto p-3 text-sm text-neutral-100 leading-relaxed font-mono"><code>{code}</code></pre>
+        </div>
+      )
+    } else {
+      const lines = block.split('\n')
+      elements.push(
+        <div key={`text-${blockIndex++}`} className="space-y-1.5">
+          {lines.map((line, i) => {
+            if (isSeparator(line)) {
+              return <hr key={i} className="border-neutral-200 my-1" />
+            }
+            if (isSectionHeader(line)) {
+              return (
+                <p key={i} className="text-sm font-semibold text-neutral-900 pt-1">
+                  {line}
+                </p>
+              )
+            }
+            if (line.trim() === '') {
+              return <div key={i} className="h-1" />
+            }
+            if (line.trimStart().startsWith('•') || line.trimStart().startsWith('-')) {
+              return (
+                <div key={i} className="flex gap-2 text-sm text-neutral-700">
+                  <span className="text-neutral-400 mt-0.5 select-none">•</span>
+                  <span className="flex-1">{parseLine(line.replace(/^[•\-]\s*/, ''))}</span>
+                </div>
+              )
+            }
+            if (line.trimStart().match(/^\d+\./)) {
+              return (
+                <div key={i} className="flex gap-2 text-sm text-neutral-700">
+                  <span className="text-neutral-500 font-medium min-w-[1.5ch] select-none">
+                    {line.trim().match(/^\d+/)?.[0]}
+                  </span>
+                  <span className="flex-1">{parseLine(line.replace(/^\d+\.\s*/, ''))}</span>
+                </div>
+              )
+            }
+            return (
+              <p key={i} className="text-sm text-neutral-700 leading-relaxed">
+                {parseLine(line)}
+              </p>
+            )
+          })}
+        </div>
+      )
+    }
+  }
+
+  return <div className="space-y-1.5">{elements}</div>
 }
