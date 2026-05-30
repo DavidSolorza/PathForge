@@ -14,6 +14,15 @@ export const ProjectStorageService = {
     return (await _adapter.get<Project[]>(PROJECTS_KEY)) || []
   },
 
+  getAllSync(): Project[] {
+    try {
+      const raw = localStorage.getItem('pathforge_' + PROJECTS_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  },
+
   async getById(id: string): Promise<Project | undefined> {
     const all = await this.getAll()
     return all.find((p) => p.id === id)

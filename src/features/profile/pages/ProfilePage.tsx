@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Calendar, Route, Zap, Clock, Target, Save, Edit3, X } from 'lucide-react'
+import { Mail, Calendar, Route, Zap, Clock, Target, Save, Edit3, X, Download, Upload } from 'lucide-react'
 import { useAuthStore, usePathStore, useStatsStore } from '@core/store'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
+import { DataExportService } from '@features/profile/services/DataExportService'
 import { CATEGORIES } from '@shared/types'
 import { Card, CardHeader, CardContent } from '@shared/components/ui/Card'
 import { Avatar } from '@shared/components/ui/Avatar'
@@ -12,6 +13,8 @@ import { Progress } from '@shared/components/ui/Progress'
 import { Button } from '@shared/components/ui/Button'
 import { formatDate } from '@shared/lib/utils'
 import { useToastStore } from '@shared/store/toastStore'
+import { AchievementsGrid } from '@features/profile/components/AchievementsGrid'
+import { ActivityCalendar } from '@features/profile/components/ActivityCalendar'
 
 export function ProfilePage() {
   const user = useAuthStore((s) => s.user)
@@ -24,6 +27,8 @@ export function ProfilePage() {
   const [editName, setEditName] = useState('')
   const [editBio, setEditBio] = useState('')
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -63,6 +68,35 @@ export function ProfilePage() {
       addToast('error', 'Error al actualizar el perfil')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleExport = () => {
+    DataExportService.downloadExport()
+    addToast('success', 'Datos exportados correctamente')
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+    try {
+      const result = await DataExportService.importData(file)
+      if (result.success) {
+        addToast('success', result.message)
+        setPaths(await PathStorageService.getAll())
+        setStats(await UserStorageService.getStats())
+      } else {
+        addToast('error', result.message)
+      }
+    } catch {
+      addToast('error', 'Error al importar datos')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -217,6 +251,49 @@ export function ProfilePage() {
           </div>
         </div>
       )}
+
+      <ActivityCalendar />
+
+      <AchievementsGrid />
+
+      <div>
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Gestionar datos</h2>
+        <Card>
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-neutral-900 mb-2">Exportar datos</h3>
+              <p className="text-xs text-neutral-500 mb-3">
+                Descarga una copia de seguridad de todas tus rutas, proyectos, notas y estadísticas
+              </p>
+              <Button variant="outline" icon={<Download className="h-4 w-4" />} onClick={handleExport}>
+                Exportar todo
+              </Button>
+            </div>
+
+            <div className="border-t border-neutral-200 pt-4">
+              <h3 className="text-sm font-medium text-neutral-900 mb-2">Importar datos</h3>
+              <p className="text-xs text-neutral-500 mb-3">
+                Restaura datos desde un archivo de backup. Los datos existentes se combinarán con los importados.
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                icon={<Upload className="h-4 w-4" />}
+                onClick={() => fileInputRef.current?.click()}
+                loading={importing}
+              >
+                Importar desde archivo
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -32,8 +32,9 @@ import { UserStorageService } from '@features/profile/services/UserStorageServic
 import { StudyService } from '@features/learning-path/services/StudyService'
 import { StudyTimer } from '@shared/components/ui/StudyTimer'
 import { ReviewService } from '@features/learning-path/services/ReviewService'
+import { AchievementService } from '@features/profile/services/AchievementService'
 import { CATEGORIES } from '@shared/types'
-import type { LearningPath, RecentActivity, LearningGoal } from '@shared/types'
+import type { LearningPath, RecentActivity, LearningGoal, Achievement } from '@shared/types'
 import { Card, CardHeader, CardContent } from '@shared/components/ui/Card'
 import { Progress } from '@shared/components/ui/Progress'
 import { Badge } from '@shared/components/ui/Badge'
@@ -41,6 +42,7 @@ import { Button } from '@shared/components/ui/Button'
 import { EmptyState } from '@shared/components/ui/EmptyState'
 import { AnimatedCounter } from '@shared/components/ui/AnimatedCounter'
 import { NewPathModal } from '@features/learning-path/components/NewPathModal'
+import { QuickNotes } from '@features/profile/components/QuickNotes'
 import { formatDate, cn } from '@shared/lib/utils'
 
 function getWeekDays() {
@@ -97,6 +99,7 @@ export function DashboardPage() {
   const [dueReviews, setDueReviews] = useState<{ pathId: string; pathTitle: string; topic: import('@shared/types').Topic }[]>([])
   const [showGoalModal, setShowGoalModal] = useState(false)
   const [weekActivity, setWeekActivity] = useState<{ date: string; active: boolean }[]>([])
+  const [recentAchievements, setRecentAchievements] = useState<Achievement[]>([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -132,6 +135,11 @@ export function DashboardPage() {
         const sessions = StudyService.getSessions()
         const weekDays = getWeekDays()
         setWeekActivity(weekDays.map((d) => ({ date: d, active: sessions.some((s) => s.date === d) })))
+
+        const newlyUnlocked = await AchievementService.checkAndUnlock()
+        if (newlyUnlocked.length > 0) {
+          setRecentAchievements(newlyUnlocked)
+        }
       } catch (err) {
         console.error('Dashboard init error:', err)
       } finally {
@@ -397,6 +405,44 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <motion.div variants={itemVariants}>
+          <QuickNotes />
+        </motion.div>
+
+        {recentAchievements.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardHeader>
+                <Award className="h-5 w-5 text-gold" />
+                <h2 className="text-sm font-semibold text-neutral-900">Logros desbloqueados</h2>
+                <Link to="/profile" className="ml-auto text-xs text-gold hover:text-gold-dark font-medium transition-colors">
+                  Ver todos
+                </Link>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {recentAchievements.slice(0, 3).map((achievement) => (
+                  <motion.div
+                    key={achievement.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-gold/5 to-transparent border border-gold/20"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold/20 to-gold/5 text-2xl flex-shrink-0">
+                      {achievement.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-neutral-900">{achievement.title}</h3>
+                      <p className="text-xs text-neutral-500">{achievement.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
 
       {nextMilestone && (

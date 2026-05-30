@@ -150,6 +150,26 @@ export interface RecentActivity {
   timestamp: string
 }
 
+export interface Achievement {
+  id: string
+  title: string
+  description: string
+  icon: string
+  category: 'learning' | 'streak' | 'social' | 'milestone'
+  unlockedAt?: string
+  condition: {
+    type: 'topics_completed' | 'paths_completed' | 'streak_days' | 'total_minutes' | 'projects_completed' | 'resources_bookmarked'
+    target: number
+  }
+}
+
+export interface QuickNote {
+  id: string
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type Category =
   | 'tecnologia'
   | 'idiomas'

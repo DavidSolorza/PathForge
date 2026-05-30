@@ -14,6 +14,15 @@ export const PathStorageService = {
     return (await _adapter.get<LearningPath[]>(PATHS_KEY)) || []
   },
 
+  getAllSync(): LearningPath[] {
+    try {
+      const raw = localStorage.getItem('pathforge_' + PATHS_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  },
+
   async getById(id: string): Promise<LearningPath | undefined> {
     const all = await this.getAll()
     return all.find((p) => p.id === id)
