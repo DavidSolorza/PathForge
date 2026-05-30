@@ -10,7 +10,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'first_topic',
     title: 'Primer Paso',
     description: 'Completa tu primer tema',
-    icon: '🎯',
+    icon: 'P',
     category: 'learning',
     condition: { type: 'topics_completed', target: 1 }
   },
@@ -18,7 +18,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'ten_topics',
     title: 'Estudiante Dedicado',
     description: 'Completa 10 temas',
-    icon: '📚',
+    icon: 'E',
     category: 'learning',
     condition: { type: 'topics_completed', target: 10 }
   },
@@ -26,7 +26,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'fifty_topics',
     title: 'Conocedor',
     description: 'Completa 50 temas',
-    icon: '🧠',
+    icon: 'C',
     category: 'learning',
     condition: { type: 'topics_completed', target: 50 }
   },
@@ -34,7 +34,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'hundred_topics',
     title: 'Maestro del Aprendizaje',
     description: 'Completa 100 temas',
-    icon: '👑',
+    icon: 'M',
     category: 'milestone',
     condition: { type: 'topics_completed', target: 100 }
   },
@@ -42,7 +42,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'first_path',
     title: 'Explorador',
     description: 'Completa tu primera ruta de aprendizaje',
-    icon: '🗺️',
+    icon: 'X',
     category: 'learning',
     condition: { type: 'paths_completed', target: 1 }
   },
@@ -50,7 +50,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'three_paths',
     title: 'Aventurero',
     description: 'Completa 3 rutas de aprendizaje',
-    icon: '⚔️',
+    icon: 'A',
     category: 'learning',
     condition: { type: 'paths_completed', target: 3 }
   },
@@ -58,31 +58,31 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'five_paths',
     title: 'Veterano',
     description: 'Completa 5 rutas de aprendizaje',
-    icon: '🏆',
+    icon: 'V',
     category: 'milestone',
     condition: { type: 'paths_completed', target: 5 }
   },
   {
     id: 'streak_3',
     title: 'Constante',
-    description: 'Mantén una racha de 3 días',
-    icon: '🔥',
+    description: 'Manten una racha de 3 dias',
+    icon: 'C',
     category: 'streak',
     condition: { type: 'streak_days', target: 3 }
   },
   {
     id: 'streak_7',
     title: 'Semana Perfecta',
-    description: 'Mantén una racha de 7 días',
-    icon: '⚡',
+    description: 'Manten una racha de 7 dias',
+    icon: 'S',
     category: 'streak',
     condition: { type: 'streak_days', target: 7 }
   },
   {
     id: 'streak_30',
     title: 'Mes Legendario',
-    description: 'Mantén una racha de 30 días',
-    icon: '💎',
+    description: 'Manten una racha de 30 dias',
+    icon: 'L',
     category: 'milestone',
     condition: { type: 'streak_days', target: 30 }
   },
@@ -90,7 +90,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'minutes_60',
     title: 'Primera Hora',
     description: 'Estudia 60 minutos en total',
-    icon: '⏱️',
+    icon: 'H',
     category: 'learning',
     condition: { type: 'total_minutes', target: 60 }
   },
@@ -98,15 +98,15 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'minutes_300',
     title: 'Maratonista',
     description: 'Estudia 5 horas en total',
-    icon: '🏃',
+    icon: 'M',
     category: 'learning',
     condition: { type: 'total_minutes', target: 300 }
   },
   {
     id: 'minutes_1000',
-    title: 'Experto en Formación',
-    description: 'Estudia más de 16 horas en total',
-    icon: '🎓',
+    title: 'Experto en Formacion',
+    description: 'Estudia mas de 16 horas en total',
+    icon: 'E',
     category: 'milestone',
     condition: { type: 'total_minutes', target: 1000 }
   },
@@ -114,7 +114,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'first_project',
     title: 'Constructor',
     description: 'Completa tu primer proyecto',
-    icon: '🛠️',
+    icon: 'C',
     category: 'learning',
     condition: { type: 'projects_completed', target: 1 }
   },
@@ -122,7 +122,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'three_projects',
     title: 'Arquitecto',
     description: 'Completa 3 proyectos',
-    icon: '🏗️',
+    icon: 'A',
     category: 'learning',
     condition: { type: 'projects_completed', target: 3 }
   },
@@ -130,7 +130,7 @@ const ACHIEVEMENTS: Achievement[] = [
     id: 'five_projects',
     title: 'Ingeniero Senior',
     description: 'Completa 5 proyectos',
-    icon: '🌟',
+    icon: 'I',
     category: 'milestone',
     condition: { type: 'projects_completed', target: 5 }
   }

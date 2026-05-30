@@ -85,10 +85,10 @@ export function AchievementsGrid() {
               >
                 <div className="flex items-start gap-3">
                   <div className={cn(
-                    'flex h-12 w-12 items-center justify-center rounded-xl text-2xl flex-shrink-0',
+                    'flex h-12 w-12 items-center justify-center rounded-xl text-xl font-bold flex-shrink-0',
                     isUnlocked
-                      ? 'bg-gradient-to-br from-gold/20 to-gold/5'
-                      : 'bg-neutral-100'
+                      ? 'bg-gradient-to-br from-gold/20 to-gold/5 text-gold-dark'
+                      : 'bg-neutral-100 text-neutral-400'
                   )}>
                     {isUnlocked ? achievement.icon : <Lock className="h-5 w-5 text-neutral-400" />}
                   </div>
