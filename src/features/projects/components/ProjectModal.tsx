@@ -31,6 +31,17 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
+  const resetForm = () => {
+    setName('')
+    setDescription('')
+    setStatus('draft')
+    setProgress(0)
+    setRepoUrl('')
+    setDemoUrl('')
+    setTechnologies([])
+    setNotes('')
+  }
+
   useEffect(() => {
     if (open) {
       ;(async () => {
@@ -56,17 +67,6 @@ export function ProjectModal({ open, onClose, editId }: ProjectModalProps) {
       })()
     }
   }, [open, editId])
-
-  const resetForm = () => {
-    setName('')
-    setDescription('')
-    setStatus('draft')
-    setProgress(0)
-    setRepoUrl('')
-    setDemoUrl('')
-    setTechnologies([])
-    setNotes('')
-  }
 
   const addTech = () => {
     const t = techInput.trim()

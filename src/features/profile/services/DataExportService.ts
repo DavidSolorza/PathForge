@@ -111,7 +111,7 @@ export const DataExportService = {
         success: true,
         message: `Datos importados: ${data.paths?.length || 0} rutas, ${data.projects?.length || 0} proyectos, ${data.notes?.length || 0} notas`
       }
-    } catch (error) {
+    } catch {
       return {
         success: false,
         message: 'Error al importar datos: archivo corrupto o formato inválido'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { UserPlus, Mail, Lock, User, CheckCircle2, Gem } from 'lucide-react'
+import { UserPlus, Mail, Lock, User, Gem } from 'lucide-react'
 import { AuthService } from '../services'
 import { useAuthStore } from '@core/store'
 import { Input } from '@shared/components/ui/Input'

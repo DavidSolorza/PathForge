@@ -19,7 +19,6 @@ import {
   BrainCircuit,
   Calendar,
   Sparkles,
-  FileText,
   Library,
   Award,
   Timer,
@@ -34,7 +33,7 @@ import { StudyTimer } from '@shared/components/ui/StudyTimer'
 import { ReviewService } from '@features/learning-path/services/ReviewService'
 import { AchievementService } from '@features/profile/services/AchievementService'
 import { CATEGORIES } from '@shared/types'
-import type { LearningPath, RecentActivity, LearningGoal, Achievement } from '@shared/types'
+import type { RecentActivity, LearningGoal, Achievement } from '@shared/types'
 import { Card, CardHeader, CardContent } from '@shared/components/ui/Card'
 import { Progress } from '@shared/components/ui/Progress'
 import { Badge } from '@shared/components/ui/Badge'
@@ -171,7 +170,6 @@ export function DashboardPage() {
 
   const sessions = StudyService.getSessions()
   const sessionsThisWeek = sessions.filter((s) => s.date >= getWeekStart().split('T')[0])
-  const sessionsToday = sessions.filter((s) => s.date === new Date().toISOString().split('T')[0])
   const avgDailyMin = sessionsThisWeek.length > 0 ? Math.round(weekMinutes / Math.max(1, sessionsThisWeek.length)) : 0
   const bestDay = (() => {
     const dayMap: Record<string, number> = {}
