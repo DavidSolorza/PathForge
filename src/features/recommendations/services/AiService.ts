@@ -432,19 +432,8 @@ function stagesFromDefs(def: { stages: { name: string; topics: TopicDef[] }[] },
   }))
 }
 
-function detectCategory(goal: string): { category: Category; difficulty: 'beginner' | 'intermediate' | 'advanced' } {
-  const g = goal.toLowerCase()
-  if (g.includes('python') || g.includes('program') || g.includes('javascript') || g.includes('java') || g.includes('desarrollo') || g.includes('progra') || g.includes('web') || g.includes('ia') || g.includes('datos') || g.includes('ciberseguridad') || g.includes('docker') || g.includes('react') || g.includes('node') || g.includes('css') || g.includes('html')) return { category: 'tecnologia', difficulty: 'beginner' }
-  if (g.includes('ingl') || g.includes('franc') || g.includes('alem') || g.includes('idioma')) return { category: 'idiomas', difficulty: 'beginner' }
-  if (g.includes('dise') || g.includes('ux') || g.includes('ui') || g.includes('figma')) return { category: 'diseno', difficulty: 'beginner' }
-  if (g.includes('guitar') || g.includes('piano') || g.includes('music') || g.includes('canto')) return { category: 'musica', difficulty: 'beginner' }
-  if (g.includes('foto') || g.includes('camar')) return { category: 'fotografia', difficulty: 'beginner' }
-  if (g.includes('cocin') || g.includes('gastron')) return { category: 'cocina', difficulty: 'beginner' }
-  if (g.includes('market') || g.includes('emprend') || g.includes('negocio')) return { category: 'negocios', difficulty: 'beginner' }
-  if (g.includes('dibuj') || g.includes('pint') || g.includes('arte')) return { category: 'arte', difficulty: 'beginner' }
-  if (g.includes('matem') || g.includes('fisic') || g.includes('quimi') || g.includes('ciencia')) return { category: 'ciencias', difficulty: 'beginner' }
-  if (g.includes('produc') || g.includes('organi') || g.includes('tiempo')) return { category: 'productividad', difficulty: 'beginner' }
-  return { category: 'otros', difficulty: 'beginner' }
+function detectCategory(_goal: string): { category: Category; difficulty: 'beginner' | 'intermediate' | 'advanced' } {
+  return { category: 'tecnologia', difficulty: 'beginner' }
 }
 
 function generateTitle(goal: string): string {

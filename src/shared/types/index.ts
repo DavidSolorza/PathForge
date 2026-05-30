@@ -170,31 +170,8 @@ export interface QuickNote {
   updatedAt: string
 }
 
-export type Category =
-  | 'tecnologia'
-  | 'idiomas'
-  | 'diseno'
-  | 'musica'
-  | 'arte'
-  | 'negocios'
-  | 'productividad'
-  | 'ciencias'
-  | 'cocina'
-  | 'fotografia'
-  | 'deportes'
-  | 'otros'
+export type Category = 'tecnologia'
 
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: 'tecnologia', label: 'Tecnología' },
-  { value: 'idiomas', label: 'Idiomas' },
-  { value: 'diseno', label: 'Diseño' },
-  { value: 'musica', label: 'Música' },
-  { value: 'arte', label: 'Arte' },
-  { value: 'negocios', label: 'Negocios' },
-  { value: 'productividad', label: 'Productividad' },
-  { value: 'ciencias', label: 'Ciencias' },
-  { value: 'cocina', label: 'Cocina' },
-  { value: 'fotografia', label: 'Fotografía' },
-  { value: 'deportes', label: 'Deportes' },
-  { value: 'otros', label: 'Otros' },
 ]
