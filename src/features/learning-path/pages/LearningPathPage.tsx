@@ -23,7 +23,6 @@ import {
 import { usePathStore } from '@core/store'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
 import { UserStorageService } from '@features/profile/services/UserStorageService'
-import { ReviewService } from '@features/learning-path/services/ReviewService'
 import { AiService } from '@features/recommendations/services/AiService'
 import { CATEGORIES } from '@shared/types'
 import type { Topic } from '@shared/types'
@@ -252,6 +251,27 @@ export function LearningPathPage() {
     setAiAdvice(advice)
   }
 
+  const displayPath = activePath || (paths.length > 0 ? paths[0] : null)
+  const category = displayPath ? CATEGORIES.find((c) => c.value === displayPath.category) : null
+
+  const filteredStages = useMemo(() => {
+    if (!displayPath) return []
+    if (!searchQuery.trim()) return displayPath.stages
+    const q = searchQuery.toLowerCase()
+    return displayPath.stages
+      .map((stage) => ({
+        ...stage,
+        topics: stage.topics.filter(
+          (t) => t.name.toLowerCase().includes(q) || (t.content && t.content.toLowerCase().includes(q))
+        ),
+      }))
+      .filter((stage) => stage.topics.length > 0)
+  }, [displayPath, searchQuery])
+
+  const allTopics = displayPath ? displayPath.stages.flatMap((s) => s.topics) : []
+  const completedCount = allTopics.filter((t) => t.completed).length
+  const totalCount = allTopics.length
+
   if (paths.length === 0) {
     return (
       <EmptyState
@@ -263,25 +283,7 @@ export function LearningPathPage() {
     )
   }
 
-  const displayPath = activePath || paths[0]
-  const category = CATEGORIES.find((c) => c.value === displayPath.category)
-
-  const filteredStages = useMemo(() => {
-    if (!searchQuery.trim()) return displayPath.stages
-    const q = searchQuery.toLowerCase()
-    return displayPath.stages
-      .map((stage) => ({
-        ...stage,
-        topics: stage.topics.filter(
-          (t) => t.name.toLowerCase().includes(q) || (t.content && t.content.toLowerCase().includes(q))
-        ),
-      }))
-      .filter((stage) => stage.topics.length > 0)
-  }, [displayPath.stages, searchQuery])
-
-  const allTopics = displayPath.stages.flatMap((s) => s.topics)
-  const completedCount = allTopics.filter((t) => t.completed).length
-  const totalCount = allTopics.length
+  const currentPath = displayPath!
 
   return (
     <motion.div
@@ -303,13 +305,13 @@ export function LearningPathPage() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-semibold bg-gradient-to-r from-primary-700 via-primary-600 to-gold bg-clip-text text-transparent truncate">
-                {displayPath.title}
+                {currentPath.title}
               </h1>
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="default" size="sm">{category?.label || displayPath.category}</Badge>
-              <Badge variant={displayPath.difficulty === 'beginner' ? 'default' : displayPath.difficulty === 'intermediate' ? 'warning' : 'primary'} size="sm">
-                {displayPath.difficulty === 'beginner' ? 'Principiante' : displayPath.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+              <Badge variant="default" size="sm">{category?.label || currentPath.category}</Badge>
+              <Badge variant={currentPath.difficulty === 'beginner' ? 'default' : currentPath.difficulty === 'intermediate' ? 'warning' : 'primary'} size="sm">
+                {currentPath.difficulty === 'beginner' ? 'Principiante' : currentPath.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
               </Badge>
             </div>
           </div>
@@ -321,20 +323,20 @@ export function LearningPathPage() {
           <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => navigate('/ai-assistant?new=path')}>
             <span className="hidden sm:inline">Nueva </span>ruta
           </Button>
-          {displayPath && (
-            confirmDelete === displayPath.id ? (
+          {currentPath && (
+            confirmDelete === currentPath.id ? (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5"
               >
                 <span className="text-sm text-red-600 font-medium">Eliminar?</span>
-                <button onClick={() => handleDelete(displayPath.id)} className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Si</button>
+                <button onClick={() => handleDelete(currentPath.id)} className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors">Si</button>
                 <button onClick={() => setConfirmDelete(null)} className="text-sm text-neutral-500 hover:text-neutral-700 transition-colors">No</button>
               </motion.div>
             ) : (
               <button
-                onClick={() => setConfirmDelete(displayPath.id)}
+                onClick={() => setConfirmDelete(currentPath.id)}
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-500 transition-all duration-200"
                 title="Eliminar ruta"
               >
@@ -380,9 +382,9 @@ export function LearningPathPage() {
               <Target className="h-3.5 w-3.5 text-gold" />
               <span>Progreso general</span>
             </div>
-            <span className="text-xs text-neutral-400 ml-auto">{displayPath.progress}%</span>
+            <span className="text-xs text-neutral-400 ml-auto">{currentPath.progress}%</span>
           </div>
-          <Progress value={displayPath.progress} size="md" />
+          <Progress value={currentPath.progress} size="md" />
         </div>
         <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-neutral-500 bg-neutral-50 rounded-xl px-3.5 py-2 border border-neutral-200/60">
           <Zap className="h-4 w-4 text-gold" />
@@ -509,7 +511,7 @@ export function LearningPathPage() {
                       <TopicItem
                         key={topic.id}
                         topic={topic}
-                        pathId={displayPath.id}
+                        pathId={currentPath.id}
                         stageId={stage.id}
                         onToggle={handleToggle}
                       />
@@ -523,7 +525,7 @@ export function LearningPathPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: displayPath.stages.length * 0.1 + 0.2 }}
+            transition={{ delay: currentPath.stages.length * 0.1 + 0.2 }}
             className="flex justify-center"
           >
             <button
