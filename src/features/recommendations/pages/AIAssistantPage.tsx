@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bot, Send, User, Trash2, Route, MessageSquare, Loader2, Clock, BookOpen, BarChart3, FolderKanban, Sparkles, ChevronRight, Zap, Target } from 'lucide-react'
+import { Bot, Send, User, Trash2, Route, MessageSquare, Loader2, Clock, BookOpen, BarChart3, FolderKanban, Sparkles, ChevronRight, Zap, Target, Settings2, X, ChevronUp, ChevronDown } from 'lucide-react'
 import { usePathStore } from '@core/store'
 import { AiService } from '@features/recommendations/services/AiService'
 import { PathStorageService } from '@features/learning-path/services/PathStorageService'
@@ -63,6 +63,7 @@ export function AIAssistantPage() {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [showPreferences, setShowPreferences] = useState(false)
 
   const [preferences, setPreferences] = useState<PathPreferences>({
     weeklyHours: '5-10',
@@ -418,122 +419,147 @@ export function AIAssistantPage() {
 
         <div className="border-t border-neutral-200/80 bg-neutral-50/30 p-3 sm:p-4 space-y-3">
           {mode === 'generator' && (
-            <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="space-y-4 sm:space-y-5 rounded-xl border border-neutral-200/80 bg-white p-3 sm:p-5 shadow-xs"
-            >
+            <>
               <div className="flex items-center gap-2">
-                <div className="h-5 w-1 rounded-full bg-gold" />
-                <span className="text-xs sm:text-sm font-semibold text-neutral-800">Personaliza tu ruta</span>
+                <button
+                  onClick={() => setShowPreferences(!showPreferences)}
+                  className="flex-1 flex items-center justify-between gap-2 rounded-xl border border-neutral-200/80 bg-white px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium text-neutral-700 hover:border-gold/30 hover:bg-gold/5 transition-all duration-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-gold" />
+                    <span>Personalizar ruta</span>
+                  </div>
+                  {showPreferences ? <ChevronUp className="h-4 w-4 text-neutral-400" /> : <ChevronDown className="h-4 w-4 text-neutral-400" />}
+                </button>
+                <button
+                  onClick={handleGeneratePath}
+                  disabled={generating}
+                  className="group flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-dark px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold text-white hover:from-gold-dark hover:to-gold-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm active:scale-[0.98]"
+                >
+                  {generating ? (
+                    <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200" />
+                  )}
+                  <span className="hidden sm:inline">{generating ? 'Generando...' : 'Generar ruta'}</span>
+                </button>
               </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
-                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
-                  Tiempo disponible por semana
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                  {WEEKLY_HOURS.map((h) => (
+              {showPreferences && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="space-y-4 sm:space-y-5 rounded-xl border border-neutral-200/80 bg-white p-3 sm:p-5 shadow-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-1 rounded-full bg-gold" />
+                      <span className="text-xs sm:text-sm font-semibold text-neutral-800">Personaliza tu ruta</span>
+                    </div>
                     <button
-                      key={h.value}
-                      onClick={() => setPreferences(p => ({ ...p, weeklyHours: h.value }))}
-                      className={cn(
-                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
-                        preferences.weeklyHours === h.value
-                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
-                      )}
+                      onClick={() => setShowPreferences(false)}
+                      className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
                     >
-                      {h.label}
+                      <X className="h-4 w-4" />
                     </button>
-                  ))}
-                </div>
-              </div>
+                  </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
-                  <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
-                  Como prefieres aprender?
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                  {LEARNING_METHODS.map((m) => (
-                    <button
-                      key={m.value}
-                      onClick={() => setPreferences(p => ({ ...p, learningMethod: m.value }))}
-                      className={cn(
-                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
-                        preferences.learningMethod === m.value
-                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
-                      )}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                      <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
+                      Tiempo disponible por semana
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                      {WEEKLY_HOURS.map((h) => (
+                        <button
+                          key={h.value}
+                          onClick={() => setPreferences(p => ({ ...p, weeklyHours: h.value }))}
+                          className={cn(
+                            'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
+                            preferences.weeklyHours === h.value
+                              ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
+                          )}
+                        >
+                          {h.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
-                  <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
-                  Tu nivel actual
-                </label>
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                  {LEVELS.map((l) => (
-                    <button
-                      key={l.value}
-                      onClick={() => setPreferences(p => ({ ...p, currentLevel: l.value }))}
-                      className={cn(
-                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
-                        preferences.currentLevel === l.value
-                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
-                      )}
-                    >
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                      <BookOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
+                      Como prefieres aprender?
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                      {LEARNING_METHODS.map((m) => (
+                        <button
+                          key={m.value}
+                          onClick={() => setPreferences(p => ({ ...p, learningMethod: m.value }))}
+                          className={cn(
+                            'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
+                            preferences.learningMethod === m.value
+                              ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
+                          )}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
-                  <FolderKanban className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
-                  Tipo de proyectos
-                </label>
-                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                  {PROJECT_TYPES.map((pt) => (
-                    <button
-                      key={pt.value}
-                      onClick={() => setPreferences(prev => ({ ...prev, projectPreference: pt.value }))}
-                      className={cn(
-                        'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
-                        preferences.projectPreference === pt.value
-                          ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
-                      )}
-                    >
-                      {pt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                      <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
+                      Tu nivel actual
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                      {LEVELS.map((l) => (
+                        <button
+                          key={l.value}
+                          onClick={() => setPreferences(p => ({ ...p, currentLevel: l.value }))}
+                          className={cn(
+                            'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
+                            preferences.currentLevel === l.value
+                              ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
+                          )}
+                        >
+                          {l.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <button
-                onClick={handleGeneratePath}
-                disabled={generating}
-                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-dark px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white hover:from-gold-dark hover:to-gold-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm active:scale-[0.98]"
-              >
-                {generating ? (
-                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:scale-110 duration-200" />
-                )}
-                {generating ? 'Generando...' : 'Generar ruta personalizada'}
-              </button>
-            </motion.div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] sm:text-xs font-semibold text-neutral-600 mb-2 sm:mb-2.5">
+                      <FolderKanban className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gold" />
+                      Tipo de proyectos
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                      {PROJECT_TYPES.map((pt) => (
+                        <button
+                          key={pt.value}
+                          onClick={() => setPreferences(prev => ({ ...prev, projectPreference: pt.value }))}
+                          className={cn(
+                            'rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 text-[10px] sm:text-xs font-medium border transition-all duration-200',
+                            preferences.projectPreference === pt.value
+                              ? 'border-gold bg-gold/10 text-gold-dark shadow-xs'
+                              : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50',
+                          )}
+                        >
+                          {pt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </>
           )}
 
           {mode === 'chat' && messages.length === 0 && (
